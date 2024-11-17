@@ -359,8 +359,8 @@ void pivotWheels(double l_target_angle, double r_target_angle, double allowed_er
     double r_angle_pid = 0.0;
 
     //pivot angle error
-    double l_angle_error = l_target_angle - (getNormalizedSensorAngle(left_rotation_sensor) - 90.0) * TO_RADIANS;
-    double r_angle_error =  l_target_angle - (getNormalizedSensorAngle(left_rotation_sensor) - 90.0) * TO_RADIANS;
+    double l_angle_error = 9999999999;
+    double r_angle_error =  9999999999;
 
     int32_t lu; //voltage variables for the four motor pairs of the base
     int32_t ll;
@@ -370,8 +370,7 @@ void pivotWheels(double l_target_angle, double r_target_angle, double allowed_er
     PID left_angle_PID(angle_kP, angle_kI, angle_kD);
     PID right_angle_PID(angle_kP, angle_kI, angle_kD);
     
-    while(fabs( l_target_angle - (getNormalizedSensorAngle(left_rotation_sensor) - 90.0) * TO_RADIANS) > allowed_error && 
-                fabs( l_target_angle - (getNormalizedSensorAngle(left_rotation_sensor) - 90.0) * TO_RADIANS) > allowed_error){ //while we havent reached the target pivot angles
+    while(fabs( l_angle_error) > allowed_error || fabs( r_angle_error) > allowed_error){ //while we havent reached the target pivot angles
         //get the current pivot angles of the left and right wheels in radians
         //subtract 90 degrees because the angle zero is defined as the positive x axis in the spline math but we want the zero angle to be defined as the wheels pointing to the front of the robot
         left_angle = (getNormalizedSensorAngle(left_rotation_sensor) - 90.0) * TO_RADIANS; //note that the function getNormalizedSensorAngle already implements wrapAngle to bound the angle between -180 and 180 degrees
@@ -395,8 +394,6 @@ void pivotWheels(double l_target_angle, double r_target_angle, double allowed_er
             l_angle_error = 0.0; r_angle_error = 0.0;
         }
 
-        // l_angle_error = l_target_angle - left_angle;
-        // r_angle_error = r_target_angle - right_angle;
         pros::lcd::print(4, "l_angle_error %lf", l_angle_error);
         pros::lcd::print(5, "r_angle_error %lf", r_angle_error);
         
@@ -404,22 +401,18 @@ void pivotWheels(double l_target_angle, double r_target_angle, double allowed_er
         l_angle_pid = left_angle_PID.step(l_angle_error);
         r_angle_pid = right_angle_PID.step(r_angle_error);
         
-
-
         pros::lcd::print(6, "1_angle_pid %lf", l_angle_pid);
         pros::lcd::print(7, "r_angle_pid %lf", r_angle_pid);
-        
 
-
-        //calculate voltages required to run each motor, and scale them into the acceptable voltage range so they dont exceed max voltage
-        //we have to scale the voltages because if we don't, it can happen that one or more motors dont move as fast as we expected because we ordered it to move
-        //at a higher voltage than it can physically achieve, and this will throw off the proportions of velocity of the four motor pairs, and cause the robot
-        //to move in unexpected ways. Scaling means that sometimes the robot moves slower than expected, but at least it moves correctly otherwise.
         lu = (int32_t)(l_angle_pid * scale);//this side seems less powerful on the robot
         ll = (int32_t)(-l_angle_pid * scale);   
         ru = (int32_t)(r_angle_pid * scale);
         rl = (int32_t)(-r_angle_pid * scale);
         
+        //calculate voltages required to run each motor, and scale them into the acceptable voltage range so they dont exceed max voltage
+        //we have to scale the voltages because if we don't, it can happen that one or more motors dont move as fast as we expected because we ordered it to move
+        //at a higher voltage than it can physically achieve, and this will throw off the proportions of velocity of the four motor pairs, and cause the robot
+        //to move in unexpected ways. Scaling means that sometimes the robot moves slower than expected, but at least it moves correctly otherwise.
         clampVoltage(lu, ll, ru, rl); //ensure the voltages are within usable range
 
         luA.move_voltage(lu);
@@ -436,6 +429,20 @@ void pivotWheels(double l_target_angle, double r_target_angle, double allowed_er
     
         pros::Task::delay(3);
     }
+
+      luA.move_voltage(0);
+        luB.move_voltage(0);
+
+        llA.move_voltage(0);
+        llB.move_voltage(0);
+
+        ruA.move_voltage(0);
+        ruB.move_voltage(0);
+
+        rlA.move_voltage(0);
+        rlB.move_voltage(0);
+    
+        pros::Task::delay(3);
 }
 
 void rotateWheels(double l_distance, double r_distance, double allowed_error){ //rotate the left and right wheels by a certain amount WHILE maintaining pivot angle
@@ -444,10 +451,10 @@ void rotateWheels(double l_distance, double r_distance, double allowed_error){ /
 
     double l_distance_error = l_distance; //distance error of the wheels
     double r_distance_error = r_distance;
-    
+
     //pivot angles of the wheel at the start of the motion, we MUST maintain these pivot angles so the robot moves straight
-    double l_angleMaintain = getNormalizedSensorAngle(left_rotation_sensor) - 90.0 * TO_RADIANS; //note that the function getNormalizedSensorAngle already implements wrapAngle to bound the angle between -180 and 180 degrees
-    double r_angleMaintain = getNormalizedSensorAngle(right_rotation_sensor) - 90.0 * TO_RADIANS; //note that the function getNormalizedSensorAngle already implements wrapAngle to bound the angle between -180 and 180 degrees
+    double l_angleMaintain = (getNormalizedSensorAngle(left_rotation_sensor) - 90.0) * TO_RADIANS; //note that the function getNormalizedSensorAngle already implements wrapAngle to bound the angle between -180 and 180 degrees
+    double r_angleMaintain = (getNormalizedSensorAngle(right_rotation_sensor) - 90.0) * TO_RADIANS; //note that the function getNormalizedSensorAngle already implements wrapAngle to bound the angle between -180 and 180 degrees
 
     double left_angle, right_angle; //numerical angle for each wheel in radians from -pi to pi
     //steering angle error
@@ -476,7 +483,7 @@ void rotateWheels(double l_distance, double r_distance, double allowed_error){ /
 
     tareBaseMotorEncoderPositions(); //tare all base motor encoder positions
 
-    while(fabs(l_distance_error) > allowed_error && fabs(r_distance_error) > allowed_error){ //while the left and right wheels have not moved the target distance
+    while(fabs(l_distance_error) > allowed_error || fabs(r_distance_error) > allowed_error){ //while the left and right wheels have not moved the target distance
         //get the distance that the robot has moved since we started this function
         //we have to divide by four because the velocity of the wheel is the average of the velocities of the four motors for that wheel
         //we cannot just take one motor for each gear of each wheel, since each gear is powered by two motors which could be running at marginally different speeds
@@ -484,23 +491,49 @@ void rotateWheels(double l_distance, double r_distance, double allowed_error){ /
         l_distance_moved = ((luA.get_position()+luB.get_position()+llA.get_position()+llB.get_position())/4.0) / ticks_per_mm;
         r_distance_moved = ((ruA.get_position()+ruB.get_position()+rlA.get_position()+rlB.get_position())/4.0) / ticks_per_mm;
 
+        pros::lcd::print(0, "l_distance_moved %lf", l_distance_moved);
+        pros::lcd::print(1, "r_distance_moved %lf", r_distance_moved);
+
         l_distance_error = l_distance - l_distance_moved; //calculate the error distance
         r_distance_error = r_distance - r_distance_moved;
+
+        pros::lcd::print(2, "l_distance_error %lf", l_distance_error);
+        pros::lcd::print(3, "r_distance_error %lf", r_distance_error);
         
         //get the current pivot angles of the left and right wheels in radians
         //subtract 90 degrees because the angle zero is defined as the positive x axis in the spline math but we want the zero angle to be defined as the wheels pointing to the front of the robot
-        left_angle = getNormalizedSensorAngle(left_rotation_sensor) - 90.0 * TO_RADIANS; //note that the function getNormalizedSensorAngle already implements wrapAngle to bound the angle between -180 and 180 degrees
-        right_angle = getNormalizedSensorAngle(right_rotation_sensor) - 90.0 * TO_RADIANS;
+        left_angle = (getNormalizedSensorAngle(left_rotation_sensor) - 90.0) * TO_RADIANS; //note that the function getNormalizedSensorAngle already implements wrapAngle to bound the angle between -180 and 180 degrees
+        right_angle = (getNormalizedSensorAngle(right_rotation_sensor) - 90.0) * TO_RADIANS;
+
+        pros::lcd::print(4, "currentLeft %lf", left_angle);
+        pros::lcd::print(5, "currentRight %lf", right_angle);
+
+
 
         // calculate the error angle
-        l_error = l_angleMaintain - left_angle;
-        r_error = r_angleMaintain - right_angle;
+        vector3D l_target_angle = vector3D(cos(l_angleMaintain), sin(l_angleMaintain), 0);
+        vector3D r_target_angle = vector3D(cos(r_angleMaintain), sin(r_angleMaintain), 0);
+        vector3D l_current_angle = vector3D(cos(left_angle), sin(left_angle), 0);
+        vector3D r_current_angle = vector3D(cos(right_angle), sin(right_angle), 0);
+
+        l_error = angle(l_current_angle, l_target_angle);
+        r_error = angle(r_current_angle, r_target_angle);
+
+        pros::lcd::print(6, "l_error %lf", l_error);
+        pros::lcd::print(7, "r_error %lf", r_error);
 
         //calculate the PID output
         l_angle_pid = left_angle_PID.step(l_error);
         r_angle_pid = right_angle_PID.step(r_error);
+
+        pros::lcd::print(6, "1_angle_pid %lf", l_angle_pid);
+        pros::lcd::print(7, "r_angle_pid %lf", r_angle_pid);
+
         l_distance_pid += left_distance_PID.step(l_distance_error);
         r_distance_pid += right_distance_PID.step(r_distance_error);
+
+        pros::lcd::print(6, "l_distance_pid %lf", l_distance_pid);
+        pros::lcd::print(7, "r_distance_pid %lf", r_distance_pid);
 
         //tuned value, reduces power output more when the wheel is facing a more incorrect way 
         //it will scale to a minimum of 0.7 as defined by the constant base_v in definitions.h
@@ -788,7 +821,8 @@ void initialize(){
 }
 
 void opcontrol(){
-            pivotWheels(M_PI, M_PI / 2, 0.01);
+            pivotWheels(M_PI, M_PI / 2, 0.5);
+            rotateWheels(1000,1000,10);
 
   while(true){
     leftX = master.get_analog(ANALOG_LEFT_X);
