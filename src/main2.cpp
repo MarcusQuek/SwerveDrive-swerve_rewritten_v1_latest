@@ -430,19 +430,19 @@ void pivotWheels(double l_target_angle, double r_target_angle, double allowed_er
         pros::Task::delay(3);
     }
 
-      luA.move_voltage(0);
-        luB.move_voltage(0);
+    luA.move_voltage(0);
+    luB.move_voltage(0);
 
-        llA.move_voltage(0);
-        llB.move_voltage(0);
+    llA.move_voltage(0);
+    llB.move_voltage(0);
 
-        ruA.move_voltage(0);
-        ruB.move_voltage(0);
+    ruA.move_voltage(0);
+    ruB.move_voltage(0);
 
-        rlA.move_voltage(0);
-        rlB.move_voltage(0);
-    
-        pros::Task::delay(3);
+    rlA.move_voltage(0);
+    rlB.move_voltage(0);
+
+    pros::Task::delay(3);
 }
 
 void rotateWheels(double l_distance, double r_distance, double allowed_error){ //rotate the left and right wheels by a certain amount WHILE maintaining pivot angle
@@ -505,10 +505,8 @@ void rotateWheels(double l_distance, double r_distance, double allowed_error){ /
         left_angle = (getNormalizedSensorAngle(left_rotation_sensor) - 90.0) * TO_RADIANS; //note that the function getNormalizedSensorAngle already implements wrapAngle to bound the angle between -180 and 180 degrees
         right_angle = (getNormalizedSensorAngle(right_rotation_sensor) - 90.0) * TO_RADIANS;
 
-        pros::lcd::print(4, "currentLeft %lf", left_angle);
-        pros::lcd::print(5, "currentRight %lf", right_angle);
-
-
+        pros::lcd::print(4, "left_angle %lf", left_angle);
+        pros::lcd::print(5, "right_angle %lf", right_angle);
 
         // calculate the error angle
         vector3D l_target_angle = vector3D(cos(l_angleMaintain), sin(l_angleMaintain), 0);
@@ -519,38 +517,32 @@ void rotateWheels(double l_distance, double r_distance, double allowed_error){ /
         l_error = angle(l_current_angle, l_target_angle);
         r_error = angle(r_current_angle, r_target_angle);
 
-        pros::lcd::print(6, "l_error %lf", l_error);
-        pros::lcd::print(7, "r_error %lf", r_error);
+        // pros::lcd::print(6, "l_error %lf", l_error);
+        // pros::lcd::print(7, "r_error %lf", r_error);
 
         //calculate the PID output
         l_angle_pid = left_angle_PID.step(l_error);
         r_angle_pid = right_angle_PID.step(r_error);
 
-        pros::lcd::print(6, "1_angle_pid %lf", l_angle_pid);
-        pros::lcd::print(7, "r_angle_pid %lf", r_angle_pid);
+        // pros::lcd::print(6, "1_angle_pid %lf", l_angle_pid); 
+        // pros::lcd::print(7, "r_angle_pid %lf", r_angle_pid);
 
-        l_distance_pid += left_distance_PID.step(l_distance_error);
-        r_distance_pid += right_distance_PID.step(r_distance_error);
+        l_distance_pid = left_distance_PID.step(l_distance_error);
+        r_distance_pid = right_distance_PID.step(r_distance_error);
 
         pros::lcd::print(6, "l_distance_pid %lf", l_distance_pid);
         pros::lcd::print(7, "r_distance_pid %lf", r_distance_pid);
 
-        //tuned value, reduces power output more when the wheel is facing a more incorrect way 
-        //it will scale to a minimum of 0.7 as defined by the constant base_v in definitions.h
-        //at zero error its at full power and scales linearly down as error increases, at max error of pi/2 it caps at 0.7
-        lscale = scale * ((1.0-l_distance_error)*fabs((l_error))+l_distance_error);
-        rscale = scale * ((1.0-r_distance_error)*fabs((r_error))+r_distance_error);
-
+        lu = (int32_t)(scale * (l_distance_pid + l_angle_pid));//this side seems less powerful on the robot
+        ll = (int32_t)(scale * (l_distance_pid - l_angle_pid));    
+        ru = (int32_t)(scale * (r_distance_pid + r_angle_pid));
+        rl = (int32_t)(scale * (r_distance_pid - r_angle_pid));
+        
         //calculate voltages required to run each motor, and scale them into the acceptable voltage range so they dont exceed max voltage
         //we have to scale the voltages because if we don't, it can happen that one or more motors dont move as fast as we expected because we ordered it to move
         //at a higher voltage than it can physically achieve, and this will throw off the proportions of velocity of the four motor pairs, and cause the robot
         //to move in unexpected ways. Scaling means that sometimes the robot moves slower than expected, but at least it moves correctly otherwise.
-        lu = (int32_t)(lscale * (l_distance_pid + l_angle_pid));//this side seems less powerful on the robot
-        ll = (int32_t)(lscale * (l_distance_pid - l_angle_pid));    
-        ru = (int32_t)(rscale * (r_distance_pid + r_angle_pid));
-        rl = (int32_t)(rscale * (r_distance_pid - r_angle_pid));
-        
-        clampVoltage(lu, ll, ru, rl); //ensure the voltages are within usable range
+        //clampVoltage(lu, ll, ru, rl); //ensure the voltages are within usable range
 
         luA.move_voltage(lu);
         luB.move_voltage(lu);
@@ -566,6 +558,20 @@ void rotateWheels(double l_distance, double r_distance, double allowed_error){ /
     
         pros::Task::delay(1);
     }
+
+    luA.move_voltage(0);
+    luB.move_voltage(0);
+
+    llA.move_voltage(0);
+    llB.move_voltage(0);
+
+    ruA.move_voltage(0);
+    ruB.move_voltage(0);
+
+    rlA.move_voltage(0);
+    rlB.move_voltage(0);
+
+    pros::Task::delay(3);
 }
 
 struct MotionStepCommand { //contains the amount that the wheels should rotate and the target angle of the wheels
@@ -823,6 +829,9 @@ void initialize(){
 void opcontrol(){
             pivotWheels(M_PI, M_PI / 2, 0.5);
             rotateWheels(1000,1000,10);
+            pivotWheels(M_PI / 2, M_PI, 0.5);
+            rotateWheels(1000,1000,10);
+
 
   while(true){
     leftX = master.get_analog(ANALOG_LEFT_X);

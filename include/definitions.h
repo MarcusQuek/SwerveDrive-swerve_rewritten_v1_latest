@@ -126,7 +126,7 @@ const double angle_kP = 28.0;   //swerve wheel pivoting in driver control
 const double angle_kI = 0.00;
 const double angle_kD = 5000.0;
 
-const double distance_kP = 28.0; //swerve wheel rotation distance
+const double distance_kP = 30.0; //swerve wheel rotation distance
 const double distance_kI = 0.0;
 const double distance_kD = 5000.0;
 
@@ -142,7 +142,7 @@ const double v_kF = 0.3;    //feedforward compensation for translation
 const double scale  = 30.0;
 const double base_v = 0.7; //this defines the min power of the robot when scaling its power down for each side when the wheels are aiming the wrong way
 
-const double ticks_per_mm = 220 / 360 * 600; //convert mm to ticks
+const double ticks_per_mm = 2.72727272727; //convert mm to ticks
 
 
 double target_angle = 0.0;
