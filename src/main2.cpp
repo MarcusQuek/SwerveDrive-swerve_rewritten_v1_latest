@@ -583,215 +583,214 @@ struct StepCommandList{ //contains the list of commands for the base to follow i
     std::vector<MotionStepCommand> Steps;
     double cax, cay, cbx, cby, ccx, ccy, cdx, cdy;
 };
-// struct Waypoint{ //stores a waypoint of the auton path
-//     vector3D position, velocity;
-//     Waypoint(vector3D position, vector3D velocity)
-//         : position(position), velocity(velocity) {}
-// }
+struct Waypoint{ //stores a waypoint of the auton path
+    vector3D position, velocity;
+    Waypoint(vector3D position, vector3D velocity)
+        : position(position), velocity(velocity) {}
+};
 
-// // std::vector<Waypoint> ImportWaypointConfig(String config)
-// {
-//     std::vector<Waypoint>& waypoints;
-//     if (config.empty())
-//         return;
-//     std::string xValue, yValue, magnitude, direction;
-//     size_t i = 0;
-//     while (i < config.length()) {
-//         try {
-//             if (config[i] == 'x') {
-//                 i++; // skip over the x character
-//                 while (config[i] != 'y') {
-//                     xValue += config[i];
-//                     i++;
-//                 }
-//             }
-//             if (config[i] == 'y') {
-//                 i++; // skip over the y character
-//                 while (config[i] != 'v') {
-//                     yValue += config[i];
-//                     i++;
-//                 }
-//             }
-//             if (config[i] == 'v') {
-//                 i++; // skip over the v character
-//                 while (config[i] != 'θ') {
-//                     magnitude += config[i];
-//                     i++;
-//                 }
-//             }
-//             if (config[i] == 'θ') {
-//                 i++; // skip over the θ character
-//                 while (config[i] != '&') {
-//                     direction += config[i];
-//                     i++;
-//                 }
-//             }
-//             if (config[i] == '&') {
-//                 i++; // skip over the & character
-//                 waypoints.emplace_back( //construct a new waypoint and attach it to the back of the waypoints vector
-//                     vector3D(std::stod(xValue) / 5, std::stod(yValue) / 5, 0),
-//                     vector3D(std::stod(magnitude), std::stod(direction), 0)
-//                 );
-//                 // reset the strings to be ready to translate the next waypoint
-//                 xValue.clear();
-//                 yValue.clear();
-//                 magnitude.clear();
-//                 direction.clear();
-//             }
-//         } catch (const std::exception&) {
-//             break;
-//         }
-//     }
-//     return waypoints;
-// }
+std::vector<Waypoint> ImportWaypointConfig(std::string config)
+{
+    std::vector<Waypoint> waypoints;
+    if (config.empty())
+        return;
+    std::string xValue, yValue, magnitude, direction;
+    size_t i = 0;
+    while (i < config.length()) {
+        try {
+            if (config[i] == 'x') {
+                i++; // skip over the x character
+                while (config[i] != 'y') {
+                    xValue += config[i];
+                    i++;
+                }
+            }
+            if (config[i] == 'y') {
+                i++; // skip over the y character
+                while (config[i] != 'v') {
+                    yValue += config[i];
+                    i++;
+                }
+            }
+            if (config[i] == 'v') {
+                i++; // skip over the v character
+                while (config[i] != 'θ') {
+                    magnitude += config[i];
+                    i++;
+                }
+            }
+            if (config[i] == 'θ') {
+                i++; // skip over the θ character
+                while (config[i] != '&') {
+                    direction += config[i];
+                    i++;
+                }
+            }
+            if (config[i] == '&') {
+                i++; // skip over the & character
+                waypoints.emplace_back( //construct a new waypoint and attach it to the back of the waypoints vector
+                    vector3D(std::stod(xValue) / 5, std::stod(yValue) / 5, 0),
+                    vector3D(std::stod(magnitude), std::stod(direction), 0)
+                );
+                // reset the strings to be ready to translate the next waypoint
+                xValue.clear();
+                yValue.clear();
+                magnitude.clear();
+                direction.clear();
+            }
+        } catch (const std::exception&) {
+            break;
+        }
+    }
+    return waypoints;
+}
 
-// A struct to represent a single point in the lookup table
-// struct Point {
-//     double x; //u value
-//     double y; //angle value
-// };
+struct Point { // A struct to represent a single point in the lookup table
+    double x; //u value
+    double y; //angle value
+};
 
-// Function to perform linear interpolation in the orientation lookup tables
-// double linearInterpolate(const std::vector<Point>& points, double x) {
-    // Ensure the lookup table is sorted by x
-//     auto compare = [](const Point& a, const Point& b) { return a.x < b.x; };
-//     auto it = std::lower_bound(points.begin(), points.end(), Point{x, 0.0}, compare);
+double linearInterpolate(const std::vector<Point>& points, double x) { // Function to perform linear interpolation in the orientation lookup tables
+    //Ensure the lookup table is sorted by x
+    auto compare = [](const Point& a, const Point& b) { return a.x < b.x; };
+    auto it = std::lower_bound(points.begin(), points.end(), Point{x, 0.0}, compare);
 
-//     // Handle cases where x is out of range
-//     if (it == points.begin()) {
-//         return points.front().y; // Return the first y-value if x is too small
-//     }
-//     if (it == points.end()) {
-//         return points.back().y; // Return the last y-value if x is too large
-//     }
+    // Handle cases where x is out of range
+    if (it == points.begin()) {
+        return points.front().y; // Return the first y-value if x is too small
+    }
+    if (it == points.end()) {
+        return points.back().y; // Return the last y-value if x is too large
+    }
 
-//     // Find the two points for interpolation
-//     auto p2 = *it;
-//     auto p1 = *(it - 1);
+    // Find the two points for interpolation
+    auto p2 = *it;
+    auto p1 = *(it - 1);
 
-//     // Perform linear interpolation
-//     double slope = (p2.y - p1.y) / (p2.x - p1.x);
-//     return p1.y + slope * (x - p1.x);
-// }
+    double slope = (p2.y - p1.y) / (p2.x - p1.x);     // Perform linear interpolation
+    return p1.y + slope * (x - p1.x);
+}
 
-// std::vector<Point> generateLocalLookupTable(double startValue, double endValue, std::vector<Point> GlobalLookupTable, double resolution) //generates a subtable of a larger lookup table
-// {
-//     std::vector<Point> LocalLookupTable = {
-//         {linearInterpolate(GlobalLookupTable, startValue), 0} //input the start point of the lookup table
-//     }
-//     for(int i = 0; i < 1 - (1 / resolution); i = i + 1 / resolution) //input all the points in the middle of the lookup table
-//         LocalLookupTable.emplace_back(linearInterpolate(GlobalLookupTable, i + startValue), i);
-//     LocalLookupTable.emplace_back(linearInterpolate(GlobalLookupTable, endValue), 1); //input the end point of the lookup table
-// }
+std::vector<Point> generateLocalLookupTable(double startValue, double endValue, std::vector<Point> GlobalLookupTable, double resolution) //generates a subtable of a larger lookup table
+{
+    std::vector<Point> LocalLookupTable = {
+        {linearInterpolate(GlobalLookupTable, startValue), 0} //input the start point of the lookup table
+    };
+    for(int i = 0; i < 1 - (1 / resolution); i = i + 1 / resolution) //input all the points in the middle of the lookup table
+        LocalLookupTable.emplace_back(linearInterpolate(GlobalLookupTable, i + startValue), i);
+    LocalLookupTable.emplace_back(linearInterpolate(GlobalLookupTable, endValue), 1); //input the end point of the lookup table
 
-// void GetNextStep(std::vector<MotionStepCommand>& Steps, vector3D NewRobotPosition, double NewRobotOrientation, vector3D PreviousLeftWheelPosition, vector3D PreviousRightWheelPosition) {
-//     //apply definition of L(t) and R(t) to get current left and right wheel position
-//     //left and right displacements are the relative positions of the left and right wheels relative to the robot
-//     vector3D left_displacement(std::sin(NewRobotOrientation) * WHEEL_BASE_RADIUS, std::cos(NewRobotOrientation) * WHEEL_BASE_RADIUS);
-//     vector3D right_displacement(std::sin(NewRobotOrientation) * WHEEL_BASE_RADIUS, std::cos(NewRobotOrientation) * WHEEL_BASE_RADIUS);
-//     vector3D NewLeftWheelPosition = NewRobotPosition + left_displacement;
-//     vector3D NewRightWheelPosition = NewRobotPosition + right_displacement;
-//     //compare new left and right wheel positions to the previous left and right wheel positions to see how each wheel should move during the next step, to get from the previous to the new state
-//     vector3D LeftStep = NewLeftWheelPosition - PreviousLeftWheelPosition;
-//     vector3D RightStep = NewRightWheelPosition - PreviousRightWheelPosition;
-//     Steps.push_back(MotionStepCommand(LeftStep.magnitude(), LeftStep.getAngle(), RightStep.magnitude(), RightStep.getAngle())); //encode the step information into the Steps list
-// }
+    return LocalLookupTable;
+}
 
-// StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vStart, vector3D vEnd, float StepLength, std::vector<Point> LocalOrientationLookupTable) {
-//     StepCommandList StepCL; //this list will store all the step motion data that causes the robot to execute the path
+void GetNextStep(std::vector<MotionStepCommand>& Steps, vector3D NewRobotPosition, double NewRobotOrientation, vector3D PreviousLeftWheelPosition, vector3D PreviousRightWheelPosition) {
+    //apply definition of L(t) and R(t) to get current left and right wheel position
+    //left and right displacements are the relative positions of the left and right wheels relative to the robot
+    vector3D left_displacement(std::sin(NewRobotOrientation) * WHEEL_BASE_RADIUS, std::cos(NewRobotOrientation) * WHEEL_BASE_RADIUS);
+    vector3D right_displacement(std::sin(NewRobotOrientation) * WHEEL_BASE_RADIUS, std::cos(NewRobotOrientation) * WHEEL_BASE_RADIUS);
+    vector3D NewLeftWheelPosition = NewRobotPosition + left_displacement;
+    vector3D NewRightWheelPosition = NewRobotPosition + right_displacement;
+    //compare new left and right wheel positions to the previous left and right wheel positions to see how each wheel should move during the next step, to get from the previous to the new state
+    vector3D LeftStep = NewLeftWheelPosition - PreviousLeftWheelPosition;
+    vector3D RightStep = NewRightWheelPosition - PreviousRightWheelPosition;
+    Steps.push_back(MotionStepCommand(LeftStep.magnitude(), LeftStep.getAngle(), RightStep.magnitude(), RightStep.getAngle())); //encode the step information into the Steps list
+}
 
-//     //THIS PRODUCES THE HERMITE SPLINE COEFFICIENTS. THESE ARE NOT CONSTANTS FOR YOU TO TUNE. DO NOT CHANGE THESE CONSTANTS.
-//     StepCL.cax = 2 * pStart.x + vStart.x - 2 * pEnd.x + vEnd.x;
-//     StepCL.cay = 2 * pStart.y + vStart.y - 2 * pEnd.y + vEnd.y;
-//     StepCL.cbx = -3 * pStart.x - 2 * vStart.x + 3 * pEnd.x - vEnd.x;
-//     StepCL.cby = -3 * pStart.y - 2 * vStart.y + 3 * pEnd.y - vEnd.y;
-//     StepCL.ccx = vStart.x;
-//     StepCL.ccy = vStart.y;
-//     StepCL.cdx = pStart.x;
-//     StepCL.cdy = pStart.y;
+StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vStart, vector3D vEnd, float StepLength, std::vector<Point> LocalOrientationLookupTable) {
+    StepCommandList StepCL; //this list will store all the step motion data that causes the robot to execute the path
 
-//     vector3D ct[4] = { //this array of vector3D represents the coefficients of the parametric polynomial function C(t) which defines the curve of the path
-//         vector3D(StepCL.cax, StepCL.cay),
-//         vector3D(StepCL.cbx, StepCL.cby),
-//         vector3D(StepCL.ccx, StepCL.ccy),
-//         vector3D(StepCL.cdx, StepCL.cdy)
-//     };
+    //THIS PRODUCES THE HERMITE SPLINE COEFFICIENTS. THESE ARE NOT CONSTANTS FOR YOU TO TUNE. DO NOT CHANGE THESE CONSTANTS.
+    StepCL.cax = 2 * pStart.x + vStart.x - 2 * pEnd.x + vEnd.x;
+    StepCL.cay = 2 * pStart.y + vStart.y - 2 * pEnd.y + vEnd.y;
+    StepCL.cbx = -3 * pStart.x - 2 * vStart.x + 3 * pEnd.x - vEnd.x;
+    StepCL.cby = -3 * pStart.y - 2 * vStart.y + 3 * pEnd.y - vEnd.y;
+    StepCL.ccx = vStart.x;
+    StepCL.ccy = vStart.y;
+    StepCL.cdx = pStart.x;
+    StepCL.cdy = pStart.y;
 
-//     vector3D CurrentRobotPosition = pStart; //current robot position is simply the position of the robot at the start of the motion
-//     double CurrentRobotOrientation = vector3D(vStart).getAngle(); //angle of the robot at the start of the motion is simply the angle of the robot velocity at the start of the motion
-//     double mEnd = vEnd.getAngle(); //angle of the robot at the end of the motion is simply the angle of the robot velocity at the end of the motion
+    vector3D ct[4] = { //this array of vector3D represents the coefficients of the parametric polynomial function C(t) which defines the curve of the path
+        vector3D(StepCL.cax, StepCL.cay),
+        vector3D(StepCL.cbx, StepCL.cby),
+        vector3D(StepCL.ccx, StepCL.ccy),
+        vector3D(StepCL.cdx, StepCL.cdy)
+    };
 
-//     //left and right displacements are the positions of the left and right wheels relative to the robot
-//     vector3D previous_left_displacement(std::sin(CurrentRobotOrientation) * WHEEL_BASE_RADIUS, std::cos(CurrentRobotOrientation) * WHEEL_BASE_RADIUS);
-//     vector3D previous_right_displacement(-std::sin(CurrentRobotOrientation) * WHEEL_BASE_RADIUS, -std::cos(CurrentRobotOrientation) * WHEEL_BASE_RADIUS);
-//     vector3D PreviousLeftWheelPosition = CurrentRobotPosition + previous_left_displacement;
-//     vector3D PreviousRightWheelPosition = CurrentRobotPosition + previous_right_displacement;
-//     for (float t = StepLength; t < 1; t += StepLength) { //StepLength is a value to be tuned. Smaller steps produce a more accurate motion but PWM the motors more aggressively, slowing the motion down.
-//         //apply C(t) equation to get CurrentRobotPosition
-//         CurrentRobotPosition = vector3D(
-//             ct[0].x * std::pow(t, 3) + ct[1].x * std::pow(t, 2) + ct[2].x * t + ct[3].x, //x polynomial of the parametric equation C(t)
-//             ct[0].y * std::pow(t, 3) + ct[1].y * std::pow(t, 2) + ct[2].y * t + ct[3].y //y polynomial of the parametric equation C(t)
-//         );
-//         //apply LocalOrientationLookupTable to get CurrentRobotOrientation
-//         CurrentRobotOrientation = linearInterpolate(LocalOrientationLookupTable, t) //orientation changes according to lookup table
-//         GetNextStep(StepCL.Steps, CurrentRobotPosition, CurrentRobotOrientation, PreviousLeftWheelPosition, PreviousRightWheelPosition);
-//     }
-//     return StepCL;
-// }
+    vector3D CurrentRobotPosition = pStart; //current robot position is simply the position of the robot at the start of the motion
+    double CurrentRobotOrientation = vector3D(vStart).getAngle(); //angle of the robot at the start of the motion is simply the angle of the robot velocity at the start of the motion
+    double mEnd = vEnd.getAngle(); //angle of the robot at the end of the motion is simply the angle of the robot velocity at the end of the motion
 
-//void move_auton(){ //execute full auton path
+    //left and right displacements are the positions of the left and right wheels relative to the robot
+    vector3D previous_left_displacement(std::sin(CurrentRobotOrientation) * WHEEL_BASE_RADIUS, std::cos(CurrentRobotOrientation) * WHEEL_BASE_RADIUS);
+    vector3D previous_right_displacement(-std::sin(CurrentRobotOrientation) * WHEEL_BASE_RADIUS, -std::cos(CurrentRobotOrientation) * WHEEL_BASE_RADIUS);
+    vector3D PreviousLeftWheelPosition = CurrentRobotPosition + previous_left_displacement;
+    vector3D PreviousRightWheelPosition = CurrentRobotPosition + previous_right_displacement;
+    for (float t = StepLength; t < 1; t += StepLength) { //StepLength is a value to be tuned. Smaller steps produce a more accurate motion but PWM the motors more aggressively, slowing the motion down.
+        //apply C(t) equation to get CurrentRobotPosition
+        CurrentRobotPosition = vector3D(
+            ct[0].x * std::pow(t, 3) + ct[1].x * std::pow(t, 2) + ct[2].x * t + ct[3].x, //x polynomial of the parametric equation C(t)
+            ct[0].y * std::pow(t, 3) + ct[1].y * std::pow(t, 2) + ct[2].y * t + ct[3].y //y polynomial of the parametric equation C(t)
+        );
+        //apply LocalOrientationLookupTable to get CurrentRobotOrientation
+        CurrentRobotOrientation = linearInterpolate(LocalOrientationLookupTable, t); //orientation changes according to lookup table
+        GetNextStep(StepCL.Steps, CurrentRobotPosition, CurrentRobotOrientation, PreviousLeftWheelPosition, PreviousRightWheelPosition);
+    }
+    return StepCL;
+}
+
+void move_auton(){ //execute full auton path
     //convert the config string into a big list of waypoints
-    // std::vector<Waypoint> waypoints = ImportWaypointConfig("");
+    std::vector<Waypoint> waypoints = ImportWaypointConfig("x2500.0y1500.0v110.0θ180.0&x1500.0y1500.0v1100.0θ180.0&x1500.0y2500.0v1000.0θ180.0&");
 
-    // const std::vector<Point> GlobalOrientationLookupTable = { //plots orientation angle (represented as y value in the table) against u value in parameter space of spline paths (represented as x value in the table)
-    //     {0, 0},
-    //     {1, M_PI},
-    //     {1, -M_PI}
-    // };
+    const std::vector<Point> GlobalOrientationLookupTable = { //plots orientation angle (represented as y value in the table) against u value in parameter space of spline paths (represented as x value in the table)
+        {0, 0},
+        {1, M_PI},
+        {1, -M_PI}
+    };
 
-    // // Sort GlobalOrientationLookupTable by x (in case it's not already sorted)
-    // std::sort(GlobalOrientationLookupTable.begin(), GlobalOrientationLookupTable.end(), [](const Point& a, const Point& b) {
-    //     return a.x < b.x;
-    // });
+    // Sort GlobalOrientationLookupTable by x (in case it's not already sorted)
+    std::sort(GlobalOrientationLookupTable.begin(), GlobalOrientationLookupTable.end(), [](const Point& a, const Point& b) {
+        return a.x < b.x;
+    });
 
-    // int waypointIndex = 0;
+    int waypointIndex = 0;
 
-    // //generate the lookup table of orientations local to this path, based on the global lookup table
-    // std::vector<Point> LocalOrientationLookupTable; //plots orientation angle against t value in parameter space of THIS PATH NOT ALL OF THEM
+    //generate the lookup table of orientations local to this path, based on the global lookup table
+    std::vector<Point> LocalOrientationLookupTable; //plots orientation angle against t value in parameter space of THIS PATH NOT ALL OF THEM
 
-    // while(waypointIndex < waypoints.size() - 1)
-    // {
-    //     LocalOrientationLookupTable.clear();
-        // LocalOrientationLookupTable = generateLocalLookupTable(waypointIndex, waypointIndex + 1, GlobalOrientationLookupTable, 100);
-        // StepCommandList stepCommands = GenerateHermitePath( //generate the path (in the form of a list of step commands for the robot to follow) to get from the current waypoint to the next waypoint
-        //     waypoints[waypointIndex].position, 
-        //     waypoints[waypointIndex + 1].position, 
-        //     waypoints[waypointIndex].velocity, 
-        //     waypoints[waypointIndex + 1].velocity,
-        //     0.05, //step length of the path in parameter space
-        //     LocalOrientationLookupTable); //lookup table describing the orientation of the robot as it moves
+    while(waypointIndex < waypoints.size() - 1)
+    {
+        LocalOrientationLookupTable.clear();
+        LocalOrientationLookupTable = generateLocalLookupTable(waypointIndex, waypointIndex + 1, GlobalOrientationLookupTable, 5);
+        StepCommandList stepCommands = GenerateHermitePath( //generate the path (in the form of a list of step commands for the robot to follow) to get from the current waypoint to the next waypoint
+            waypoints[waypointIndex].position, 
+            waypoints[waypointIndex + 1].position, 
+            waypoints[waypointIndex].velocity, 
+            waypoints[waypointIndex + 1].velocity,
+            0.05, //step length of the path in parameter space
+            LocalOrientationLookupTable); //lookup table describing the orientation of the robot as it moves
 
-        // //execute the step command list to get from the current waypoint to the next waypoint
-        // int StepCommandCounter = -1; //this will keep track of which step commands have been executed and which have not
-        // while(StepCommandCounter < stepCommands.Steps.size() - 1){ //run until the path is fully executed
-        //     StepCommandCounter++;
-        //     MotionStepCommand current_command(stepCommands.Steps[StepCommandCounter]); //get the current step command
+        //execute the step command list to get from the current waypoint to the next waypoint
+        int StepCommandCounter = -1; //this will keep track of which step commands have been executed and which have not
+        while(StepCommandCounter < stepCommands.Steps.size() - 1){ //run until the path is fully executed
+            StepCommandCounter++;
+            MotionStepCommand current_command(stepCommands.Steps[StepCommandCounter]); //get the current step command
 
-        //     pivotWheels(current_command.Lpivot, current_command.Rpivot, 0.1); //steer the wheels to the correct angle
-        //     rotateWheels(current_command.Lmove, current_command.Rmove, 10); //rotate the wheels the correct distance
+            pivotWheels(current_command.Lpivot, current_command.Rpivot, 0.3); //steer the wheels to the correct angle
+            rotateWheels(current_command.Lmove, current_command.Rmove, 10); //rotate the wheels the correct distance
 
-        //     pros::Task::delay(1);
-        // }
+            pros::Task::delay(1);
+        }
 
-        // WaypointIndex++;
+        waypointIndex++;
 
-    //     pros::Task::delay(1);
-    // }
-// }
+        pros::Task::delay(1);
+    }
+}
 
-// void autonomous(){
-//     move_auton();
-// }
+void autonomous(){
+    move_auton();
+}
 
 void initialize(){
     pros::lcd::initialize();
@@ -815,10 +814,7 @@ void initialize(){
     left_rotation_sensor.set_position(0);
     right_rotation_sensor.set_position(0);
 
-    
-
-
-    //move_auton();
+    // pros::Task move_base(move_auton);
 
     // pros::Task move_base(moveBase);
     //pros::Task serial_read(serialRead);
@@ -827,19 +823,14 @@ void initialize(){
 }
 
 void opcontrol(){
-            pivotWheels(M_PI, M_PI / 2, 0.5);
-            rotateWheels(1000,1000,10);
-            pivotWheels(M_PI / 2, M_PI, 0.5);
-            rotateWheels(1000,1000,10);
+    move_auton();
+    while(true){
+        leftX = master.get_analog(ANALOG_LEFT_X);
+        leftY = master.get_analog(ANALOG_LEFT_Y);
+        rightX = master.get_analog(ANALOG_RIGHT_X);
+        if(master.get_digital_new_press(DIGITAL_B)) autonomous();
 
+        pros::delay(5);
 
-  while(true){
-    leftX = master.get_analog(ANALOG_LEFT_X);
-    leftY = master.get_analog(ANALOG_LEFT_Y);
-    rightX = master.get_analog(ANALOG_RIGHT_X);
-    if(master.get_digital_new_press(DIGITAL_B)) autonomous();
-
-    pros::delay(5);
-
-  }
+    }
 }
