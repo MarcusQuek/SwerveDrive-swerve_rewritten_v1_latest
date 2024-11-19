@@ -103,7 +103,7 @@ const double MAX_RPM = 600.0;
 const double TRANSLATE_RATIO = 1.0;
 const double ROTATE_RATIO = 3.0;
 const double WHEEL_RADIUS = 34.925;
-const double WHEEL_BASE_RADIUS = 263.0/2.0;   // mm
+const double WHEEL_BASE_RADIUS = 161.50;   // mm
 const double MAX_SPEED = (2.0*M_PI*WHEEL_RADIUS*MAX_RPM)/60.0 ; //mm per second
 const double SPEED_TO_RPM = 60.0/(2.0*M_PI*WHEEL_RADIUS);
 const double MAX_ANGULAR = MAX_SPEED/WHEEL_BASE_RADIUS; // rad/s
@@ -122,17 +122,17 @@ vector3D v_right;
 vector3D v_left;
 double theta; // angle between direction vector and robot right, radians
 
-const double angle_kP = 28.0;   //swerve wheel pivoting in driver control
+const double angle_kP = 28.0;   //swerve wheel pivoting in driver control and auton
 const double angle_kI = 0.00;
 const double angle_kD = 5000.0;
 
-const double distance_kP = 30.0; //swerve wheel rotation distance
+const double distance_kP = 30.0; //swerve wheel rotation distance for auton
 const double distance_kI = 0.0;
-const double distance_kD = 5000.0;
+const double distance_kD = 500.0;
 
 const double MAX_VOLTAGE = 12000;
 
-const double velocity_kP = 0.002;   //swerve wheel rotation velocity
+const double velocity_kP = 0.002;   //swerve wheel rotation velocity for driver
 const double velocity_kI = 0.000;
 const double velocity_kD = 160.0;
 
