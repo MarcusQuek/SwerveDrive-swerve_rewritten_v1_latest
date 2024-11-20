@@ -801,8 +801,7 @@ void move_auton(){ //execute full auton path
     //convert the config string into a big list of waypoints
     std::vector<Waypoint> waypoints = ImportWaypointConfig(
         "x2500.0y1500.0v110.0t180.0&x1500.0y1500.0v1100.0t180.0&x1500.0y2500.0v1000.0t180.0&");
-
-    std::vector<Point> GlobalOrientationLookupTable = { //plots orientation angle (represented as y value in the table) against u value in parameter space of spline paths (represented as x value in the table)
+    std::vector<Point> GlobalOrientationLookupTable = { //plots u value in parameter space of spline paths (represented as x value in the table) against orientation angle (represented as y value in the table) 
         {0, 0},
         {1, 0},
         {2, 0}
@@ -879,8 +878,6 @@ void initialize(){
     left_rotation_sensor.set_position(0);
     right_rotation_sensor.set_position(0);
 
-    // pros::Task move_base(move_auton);
-
     //pros::Task move_base(moveBase);
     //pros::Task serial_read(serialRead);
 
@@ -893,20 +890,6 @@ void opcontrol(){
         leftY = master.get_analog(ANALOG_LEFT_Y);
         rightX = master.get_analog(ANALOG_RIGHT_X);
         if(master.get_digital_new_press(DIGITAL_B)) autonomous();
-        // if(master.get_digital_new_press(DIGITAL_A)){
-        //     pivotWheels(2.56767, 1.06449, 0.5);
-        //     rotateWheels(130.049, 237.552, 10);
-        //     pivotWheels(2.55713, 1.09476, 0.5);
-        //     rotateWheels(137.422, 239.604, 10);
-        //     pivotWheels(2.5867, 1.14785, 0.5);
-        //     rotateWheels(149.651, 236.856, 10);
-        //     pivotWheels(2.63994, 1.22319, 0.5);
-        //     rotateWheels(166.244, 230.893, 10);
-        //     pivotWheels(2.70266, 1.32068, 0.5);
-        //     rotateWheels(186.805, 223.484, 10);
-        //     pivotWheels(2.76527, 1.43915, 0.5);
-        //     rotateWheels(210.746, 216.465, 10);
-        // }
 
         pros::delay(5);
     }

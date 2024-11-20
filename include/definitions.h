@@ -142,7 +142,7 @@ const double v_kF = 0.3;    //feedforward compensation for translation
 const double scale  = 30.0;
 const double base_v = 0.7; //this defines the min power of the robot when scaling its power down for each side when the wheels are aiming the wrong way
 
-const double ticks_per_mm = 2.72727272727; //convert mm to ticks
+const double ticks_per_mm = 2.5; //convert mm to ticks
 
 
 double target_angle = 0.0;
