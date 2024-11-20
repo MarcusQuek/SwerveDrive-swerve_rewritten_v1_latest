@@ -596,13 +596,24 @@ std::vector<Waypoint> ImportWaypointConfig(std::string config)
             }
             if (config[i] == '&') {
                 i++; // skip over the & character
-                double velocityx = std::stod(magnitude) * std::cos(std::stod(direction));
-                double velocityy = std::stod(magnitude) * std::sin(std::stod(direction));
+                //convert the velocity polar vector into a xy vector
+                double directionvalue = std::stod(direction) / TO_DEGREES;
+                double velocityx = std::stod(magnitude) * std::cos(directionvalue);
+                double velocityy = std::stod(magnitude) * std::sin(directionvalue);
+                vector3D position = vector3D(std::stod(xValue), std::stod(yValue), 0);
+                vector3D velocity = vector3D(velocityx, velocityy);
 
                 waypoints.emplace_back( //construct a new waypoint and attach it to the back of the waypoints vector
-                    vector3D(std::stod(xValue), std::stod(yValue), 0),
-                    vector3D(velocityx, velocityy, 0)
+                    position,
+                    velocity
                 );
+                std::cout << "x position of waypoint" << position.x << std::endl;
+                std::cout << "y position of waypoint" << position.y << std::endl;
+                std::cout << "x value of velocity" << velocityx << std::endl;
+                std::cout << "y value of velocity" << velocityy << std::endl;
+                std::cout << "magnitude of velocity" << magnitude << std::endl;
+                std::cout << "direction of velocity in radians" << directionvalue << std::endl;
+
                 // reset the strings to be ready to translate the next waypoint
                 xValue.clear();
                 yValue.clear();
