@@ -758,7 +758,7 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
 
     vector3D CurrentRobotPosition = pStart; //current robot position is simply the position of the robot at the start of the motion
     double CurrentRobotOrientation = LocalOrientationLookupTable[0].y;
-    double mEnd = LocalOrientationLookupTable[LocalOrientationLookupTable.size() - 1].y;
+    double mEnd = LocalOrientationLookupTable.back().y;
 
     for (double t = StepLength; t < 1.0; t += StepLength) { //StepLength is a value to be tuned. Smaller steps produce a more accurate motion but PWM the motors more aggressively, slowing the motion down.
         //apply C(t) equation to get CurrentRobotPosition
@@ -830,7 +830,7 @@ void move_auton(){ //execute full auton path
             waypoints[waypointIndex + 1].position, 
             waypoints[waypointIndex].velocity, 
             waypoints[waypointIndex + 1].velocity,
-            0.1, //step length of the path (length in parameter space not real space)
+            0.03, //step length of the path (length in parameter space not real space)
             LocalOrientationLookupTable); //lookup table describing the orientation of the robot as it moves
 
         //execute the step command list to get from the current waypoint to the next waypoint
