@@ -697,15 +697,15 @@ void GetNextStep(std::vector<MotionStepCommand>& Steps, vector3D NewRobotPositio
     double newrwheelposx = NewRobotPosition.x + rightdispx;
     double newrwheelposy = NewRobotPosition.y + rightdispy;
 
-    // std::cout << "leftdisp.x" << leftdispx << std::endl;
-    // std::cout << "leftdisp.y" << leftdispy << std::endl;
-    // std::cout << "rightdisp.x" << rightdispx << std::endl;
-    // std::cout << "rightdisp.y" << rightdispy << std::endl;
+    std::cout << "leftdisp.x" << leftdispx << std::endl;
+    std::cout << "leftdisp.y" << leftdispy << std::endl;
+    std::cout << "rightdisp.x" << rightdispx << std::endl;
+    std::cout << "rightdisp.y" << rightdispy << std::endl;
 
-    // std::cout << "newlwheelpos.x" << newlwheelposx << std::endl;
-    // std::cout << "newlwheelpos.y" << newlwheelposy << std::endl;
-    // std::cout << "newrwheelpos.x" << newrwheelposx << std::endl;
-    // std::cout << "newrwheelpos.y" << newrwheelposy << std::endl;
+    std::cout << "newlwheelpos.x" << newlwheelposx << std::endl;
+    std::cout << "newlwheelpos.y" << newlwheelposy << std::endl;
+    std::cout << "newrwheelpos.x" << newrwheelposx << std::endl;
+    std::cout << "newrwheelpos.y" << newrwheelposy << std::endl;
 
     // vector3D NewLeftWheelPosition = NewRobotPosition + left_displacement;
     // vector3D NewRightWheelPosition = NewRobotPosition + right_displacement;
@@ -716,18 +716,22 @@ void GetNextStep(std::vector<MotionStepCommand>& Steps, vector3D NewRobotPositio
     // std::cout << "newrightwheelposition.y" << NewRightWheelPosition.x << std::endl;
 
     //compare new left and right wheel positions to the previous left and right wheel positions to see how each wheel should move during the next step, to get from the previous to the new state
-    vector3D LeftStep = vector3D(newlwheelposx - PreviousLeftWheelPosition.x, newlwheelposy - PreviousLeftWheelPosition.y);
-    vector3D RightStep = vector3D(newrwheelposx - PreviousRightWheelPosition.x, newrwheelposy - PreviousRightWheelPosition.y);
+    double lstepx = newlwheelposx - PreviousLeftWheelPosition.x;
+    double lstepy = newlwheelposy - PreviousLeftWheelPosition.y;
+    double rstepx = newrwheelposx - PreviousRightWheelPosition.x;
+    double rstepy = newrwheelposy - PreviousRightWheelPosition.y;
+    vector3D LeftStep = vector3D(lstepx, lstepy);
+    vector3D RightStep = vector3D(rstepx, rstepy);
 
-    // std::cout << "leftstepx" << LeftStep.x << std::endl;
-    // std::cout << "leftstepy" << LeftStep.y << std::endl;
-    // std::cout << "rightstepx" << RightStep.x << std::endl;
-    // std::cout << "rightstepy" << RightStep.y << std::endl;
+    std::cout << "leftstepx" << lstepx << std::endl;
+    std::cout << "leftstepy" << lstepy << std::endl;
+    std::cout << "rightstepx" << rstepx << std::endl;
+    std::cout << "rightstepy" << rstepy << std::endl;
 
-    // std::cout << "leftstepangle" << LeftStep.getAngle() << std::endl;
-    // std::cout << "rightstepangle" << RightStep.getAngle() << std::endl;
-    // std::cout << "leftstepdist" << LeftStep.magnitude() << std::endl;
-    // std::cout << "rightstepdist" << RightStep.magnitude() << std::endl;
+    std::cout << "leftstepangle" << LeftStep.getAngle() << std::endl;
+    std::cout << "rightstepangle" << RightStep.getAngle() << std::endl;
+    std::cout << "leftstepdist" << LeftStep.magnitude() << std::endl;
+    std::cout << "rightstepdist" << RightStep.magnitude() << std::endl;
 
     Steps.push_back(MotionStepCommand(LeftStep.magnitude(), LeftStep.getAngle(), RightStep.magnitude(), RightStep.getAngle())); //encode the step information into the Steps list
 }
@@ -770,16 +774,19 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
 
     double mEnd = vEnd.getAngle(); //angle of the robot at the end of the motion is simply the angle of the robot velocity at the end of the motion
 
-    //left and right displacements are the positions of the left and right wheels relative to the robot
-    vector3D previous_left_displacement(std::sin(CurrentRobotOrientation) * WHEEL_BASE_RADIUS, std::cos(CurrentRobotOrientation) * WHEEL_BASE_RADIUS);
-    vector3D previous_right_displacement(-std::sin(CurrentRobotOrientation) * WHEEL_BASE_RADIUS, -std::cos(CurrentRobotOrientation) * WHEEL_BASE_RADIUS);
-    vector3D PreviousLeftWheelPosition = CurrentRobotPosition + previous_left_displacement;
-    vector3D PreviousRightWheelPosition = CurrentRobotPosition + previous_right_displacement;
     for (double t = 0.0; t < 1.0; t += StepLength) { //StepLength is a value to be tuned. Smaller steps produce a more accurate motion but PWM the motors more aggressively, slowing the motion down.
         //apply C(t) equation to get CurrentRobotPosition
         std::cout << "prevsteppositionx" << CurrentRobotPosition.x << std::endl;
         std::cout << "prevsteppositiony" << CurrentRobotPosition.y << std::endl;
 
+        //update previous left and right wheel positions
+        //left and right displacements are the positions of the left and right wheels relative to the robot
+        vector3D previous_left_displacement(std::sin(CurrentRobotOrientation) * WHEEL_BASE_RADIUS, std::cos(CurrentRobotOrientation) * WHEEL_BASE_RADIUS);
+        vector3D previous_right_displacement(-std::sin(CurrentRobotOrientation) * WHEEL_BASE_RADIUS, -std::cos(CurrentRobotOrientation) * WHEEL_BASE_RADIUS);
+        vector3D PreviousLeftWheelPosition = CurrentRobotPosition + previous_left_displacement;
+        vector3D PreviousRightWheelPosition = CurrentRobotPosition + previous_right_displacement;
+
+        //find new robot position
         CurrentRobotPosition = vector3D(
             ct[0].x * std::pow(t, 3) + ct[1].x * std::pow(t, 2) + ct[2].x * t + ct[3].x, //x polynomial of the parametric equation C(t)
             ct[0].y * std::pow(t, 3) + ct[1].y * std::pow(t, 2) + ct[2].y * t + ct[3].y //y polynomial of the parametric equation C(t)
@@ -789,11 +796,6 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
         //apply LocalOrientationLookupTable to get CurrentRobotOrientation
         CurrentRobotOrientation = 0; //orientation changes according to lookup table
         // CurrentRobotOrientation = linearInterpolate(LocalOrientationLookupTable, t); //orientation changes according to lookup table
-
-        previous_left_displacement = vector3D(std::sin(CurrentRobotOrientation) * WHEEL_BASE_RADIUS, std::cos(CurrentRobotOrientation) * WHEEL_BASE_RADIUS);
-        previous_right_displacement = vector3D(-std::sin(CurrentRobotOrientation) * WHEEL_BASE_RADIUS, -std::cos(CurrentRobotOrientation) * WHEEL_BASE_RADIUS);
-        PreviousLeftWheelPosition = CurrentRobotPosition + previous_left_displacement;
-        PreviousRightWheelPosition = CurrentRobotPosition + previous_right_displacement;
 
         GetNextStep(StepCL.Steps, CurrentRobotPosition, CurrentRobotOrientation, PreviousLeftWheelPosition, PreviousRightWheelPosition);
     }
@@ -839,10 +841,10 @@ void move_auton(){ //execute full auton path
         for(int i = 0; i < (int)stepCommands.Steps.size(); i++){ //run until the path is fully executed
             MotionStepCommand current_command(stepCommands.Steps[i]); //get the current step command
 
-            std::cout << current_command.Lpivot << std::endl;
-            std::cout << current_command.Rpivot << std::endl;
-            std::cout << current_command.Lmove << std::endl;
-            std::cout << current_command.Rmove << std::endl;
+            std::cout << "Lpivot" << current_command.Lpivot << std::endl;
+            std::cout << "Rpivot" << current_command.Rpivot << std::endl;
+            std::cout << "Lmove" << current_command.Lmove << std::endl;
+            std::cout << "Rmove" << current_command.Rmove << std::endl;
 
             pivotWheels(current_command.Lpivot, current_command.Rpivot, 0.1); //steer the wheels to the correct angle
             rotateWheels(current_command.Lmove, current_command.Rmove, 10); //rotate the wheels the correct distance
