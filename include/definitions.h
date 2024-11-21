@@ -96,6 +96,7 @@ extern "C" int32_t vexGenericSerialTransmit( uint32_t index, uint8_t *buffer, in
 
 //Controllers
 int leftX = 0, leftY = 0, rightX = 0;
+bool toggleBase = false;
 
 //PARAMETERS
 const double DEADBAND =  8.0;

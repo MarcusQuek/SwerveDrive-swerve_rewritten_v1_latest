@@ -228,125 +228,127 @@ void moveBase(){
 
     vector3D L2I_pos(WHEEL_BASE_RADIUS,0.0,0.0);
     while(true){
+        while(toggleBase){
+            left_angle = wrapAngle(getNormalizedSensorAngle(left_rotation_sensor)-90.0)*TO_RADIANS;
+            right_angle = wrapAngle(getNormalizedSensorAngle(right_rotation_sensor)-90.0)*TO_RADIANS;
+            current_left_vector = vector3D(cos(left_angle),sin(left_angle),0.0);
+            current_right_vector = vector3D(cos(right_angle),sin(right_angle),0.0);
 
-        left_angle = wrapAngle(getNormalizedSensorAngle(left_rotation_sensor)-90.0)*TO_RADIANS;
-        right_angle = wrapAngle(getNormalizedSensorAngle(right_rotation_sensor)-90.0)*TO_RADIANS;
-        current_left_vector = vector3D(cos(left_angle),sin(left_angle),0.0);
-        current_right_vector = vector3D(cos(right_angle),sin(right_angle),0.0);
+            current_l_velocity = ((luA.get_actual_velocity()+luB.get_actual_velocity()+llA.get_actual_velocity()+llB.get_actual_velocity())/4.0);
+            current_r_velocity = ((ruA.get_actual_velocity()+ruB.get_actual_velocity()+rlA.get_actual_velocity()+rlB.get_actual_velocity())/4.0);
 
-        current_l_velocity = ((luA.get_actual_velocity()+luB.get_actual_velocity()+llA.get_actual_velocity()+llB.get_actual_velocity())/4.0);
-        current_r_velocity = ((ruA.get_actual_velocity()+ruB.get_actual_velocity()+rlA.get_actual_velocity()+rlB.get_actual_velocity())/4.0);
+            current_angular = (current_l_velocity*sin(left_angle)+current_r_velocity*sin(right_angle))/(2.0*WHEEL_BASE_RADIUS);
+            average_x_v = ((current_l_velocity*cos(left_angle))+(current_r_velocity*cos(right_angle)))/2.0;
+            average_y_v = ((current_l_velocity*sin(left_angle))+(current_r_velocity*sin(right_angle)))/2.0;
+            current_tl_velocity.load(average_x_v,average_y_v,0.0);
 
-        current_angular = (current_l_velocity*sin(left_angle)+current_r_velocity*sin(right_angle))/(2.0*WHEEL_BASE_RADIUS);
-        average_x_v = ((current_l_velocity*cos(left_angle))+(current_r_velocity*cos(right_angle)))/2.0;
-        average_y_v = ((current_l_velocity*sin(left_angle))+(current_r_velocity*sin(right_angle)))/2.0;
-        current_tl_velocity.load(average_x_v,average_y_v,0.0);
+            prev_target_v = target_v;
+            prev_target_r = target_r;
+            // TODO: switch PID to go for target angle, switch actual to use current sensor angle
+            target_v = normalizeJoystick(-leftX, -leftY).scalar(MAX_SPEED);
+            target_r = normalizeRotation(rightX).scalar(MAX_ANGULAR);
 
-        prev_target_v = target_v;
-        prev_target_r = target_r;
-        // TODO: switch PID to go for target angle, switch actual to use current sensor angle
-        target_v = normalizeJoystick(-leftX, -leftY).scalar(MAX_SPEED);
-        target_r = normalizeRotation(rightX).scalar(MAX_ANGULAR);
+            micros_prev = micros_now;
+            micros_now = pros::micros();
+            dt = micros_now-micros_prev;
+            v_fterm = (target_v-prev_target_v)*(v_kF/dt);
+            r_fterm = (target_r-prev_target_r)*(r_kF/dt);
+            target_v = target_v + v_fterm;
+            target_r = target_r + r_fterm;
+            
+            /*
+            if(target_r.norm()<(MAX_ANGULAR*0.05) && current_angular>(MAX_ANGULAR*0.05)){
+                target_r = vector3D(0,0,-0.3*current_angular);
+            }
+            if(target_v.norm()<(MAX_SPEED*0.05) && current_tl_velocity.norm()>(MAX_SPEED*0.05)){
+                target_v = current_tl_velocity.scalar(0.1);
 
-        micros_prev = micros_now;
-        micros_now = pros::micros();
-        dt = micros_now-micros_prev;
-        v_fterm = (target_v-prev_target_v)*(v_kF/dt);
-        r_fterm = (target_r-prev_target_r)*(r_kF/dt);
-        target_v = target_v + v_fterm;
-        target_r = target_r + r_fterm;
+            pros::lcd::print(1,"r_fterm %3.3f", r_fterm.z);
+            
+            pros::lcd::print(4, "la_target %3.3f", (l_error+left_angle));
+            pros::lcd::print(5, "ra_target %3.3f", (r_error+right_angle));
+
+            pros::lcd::print(6, "rot_v_y %3.8f", rotational_v_vector.y);
+            pros::lcd::print(7, "rot_v_x %3.8f", rotational_v_vector.x);
+
+            pros::lcd::print(2, "la %3.3f", left_angle);
+            pros::lcd::print(3, "ra %3.3f", right_angle);
+            }*/
+
+            rotational_v_vector = L2I_pos^target_r;
+            
+            v_left = target_v-rotational_v_vector;
+            v_right = target_v+rotational_v_vector;
+
+            bool reverse_right = false;
+            bool reverse_left = false;
+            
+            // check if the angle is obtuse
+            if (v_left * current_left_vector < 0){  
+                // reverse if angle is obtuse for shorter rotation
+                v_left = -v_left;
+                reverse_left = true;
+            }
+
+            if (v_right * current_right_vector < 0){  
+                // reverse if angle is obtuse for shorter rotation
+                v_right = -v_right;
+                reverse_right = true;
+            }
+
+            v_right_velocity = SPEED_TO_RPM* TRANSLATE_RATIO*(v_right*current_right_vector);
+            v_left_velocity = SPEED_TO_RPM* TRANSLATE_RATIO*(v_left*current_left_vector);
+
+            if(reverse_left){
+                v_left_velocity = -v_left_velocity;
+            }
+
+            if(reverse_right){
+                v_right_velocity = -v_right_velocity;
+            }
+
+            // calculate the error angle
+            l_error = angle(current_left_vector, v_left);
+            r_error = angle(current_right_vector, v_right);
+            if (std::isnan(l_error) || std::isnan(r_error)) {
+                l_error = 0.0; r_error = 0.0;
+            }
+
+            //calculate the wheel error
+            current_l_tl_error = (v_left_velocity-current_l_velocity);
+            current_r_tl_error = (v_right_velocity-current_r_velocity);
+
+            l_velocity_pid += left_velocity_PID.step(current_l_tl_error);
+            r_velocity_pid += right_velocity_PID.step(current_r_tl_error);
+
+            // calculate the PID output
+            l_angle_pid = left_angle_PID.step(l_error);
+            r_angle_pid = right_angle_PID.step(r_error);
+
+            lscale = scale * ((1.0-base_v)*fabs((l_error))+base_v);
+            rscale = scale * ((1.0-base_v)*fabs((r_error))+base_v);
+
+            lu = (int32_t)std::clamp(lscale * (l_velocity_pid + l_angle_pid), -MAX_VOLTAGE, MAX_VOLTAGE); //this side seems less powerful on the robot
+            ll = (int32_t)std::clamp(lscale * (l_velocity_pid - l_angle_pid), -MAX_VOLTAGE, MAX_VOLTAGE);
+            ru = (int32_t)std::clamp(rscale * (r_velocity_pid + r_angle_pid), -MAX_VOLTAGE, MAX_VOLTAGE);
+            rl = (int32_t)std::clamp(rscale * (r_velocity_pid - r_angle_pid), -MAX_VOLTAGE, MAX_VOLTAGE);
         
-        /*
-        if(target_r.norm()<(MAX_ANGULAR*0.05) && current_angular>(MAX_ANGULAR*0.05)){
-            target_r = vector3D(0,0,-0.3*current_angular);
-        }
-        if(target_v.norm()<(MAX_SPEED*0.05) && current_tl_velocity.norm()>(MAX_SPEED*0.05)){
-            target_v = current_tl_velocity.scalar(0.1);
 
-        pros::lcd::print(1,"r_fterm %3.3f", r_fterm.z);
+            luA.move_voltage(lu);
+            luB.move_voltage(lu);
+
+            llA.move_voltage(ll);
+            llB.move_voltage(ll);
+
+            ruA.move_voltage(ru);
+            ruB.move_voltage(ru);
+
+            rlA.move_voltage(rl);
+            rlB.move_voltage(rl);
         
-        pros::lcd::print(4, "la_target %3.3f", (l_error+left_angle));
-        pros::lcd::print(5, "ra_target %3.3f", (r_error+right_angle));
-
-        pros::lcd::print(6, "rot_v_y %3.8f", rotational_v_vector.y);
-        pros::lcd::print(7, "rot_v_x %3.8f", rotational_v_vector.x);
-
-        pros::lcd::print(2, "la %3.3f", left_angle);
-        pros::lcd::print(3, "ra %3.3f", right_angle);
-        }*/
-
-        rotational_v_vector = L2I_pos^target_r;
-        
-        v_left = target_v-rotational_v_vector;
-        v_right = target_v+rotational_v_vector;
-
-        bool reverse_right = false;
-        bool reverse_left = false;
-        
-        // check if the angle is obtuse
-        if (v_left * current_left_vector < 0){  
-            // reverse if angle is obtuse for shorter rotation
-            v_left = -v_left;
-            reverse_left = true;
+            pros::delay(2);
         }
-
-        if (v_right * current_right_vector < 0){  
-            // reverse if angle is obtuse for shorter rotation
-            v_right = -v_right;
-            reverse_right = true;
-        }
-
-        v_right_velocity = SPEED_TO_RPM* TRANSLATE_RATIO*(v_right*current_right_vector);
-        v_left_velocity = SPEED_TO_RPM* TRANSLATE_RATIO*(v_left*current_left_vector);
-
-        if(reverse_left){
-            v_left_velocity = -v_left_velocity;
-        }
-
-        if(reverse_right){
-            v_right_velocity = -v_right_velocity;
-        }
-
-        // calculate the error angle
-        l_error = angle(current_left_vector, v_left);
-        r_error = angle(current_right_vector, v_right);
-        if (std::isnan(l_error) || std::isnan(r_error)) {
-            l_error = 0.0; r_error = 0.0;
-        }
-
-        //calculate the wheel error
-        current_l_tl_error = (v_left_velocity-current_l_velocity);
-        current_r_tl_error = (v_right_velocity-current_r_velocity);
-
-        l_velocity_pid += left_velocity_PID.step(current_l_tl_error);
-        r_velocity_pid += right_velocity_PID.step(current_r_tl_error);
-
-        // calculate the PID output
-        l_angle_pid = left_angle_PID.step(l_error);
-        r_angle_pid = right_angle_PID.step(r_error);
-
-        lscale = scale * ((1.0-base_v)*fabs((l_error))+base_v);
-        rscale = scale * ((1.0-base_v)*fabs((r_error))+base_v);
-
-        lu = (int32_t)std::clamp(lscale * (l_velocity_pid + l_angle_pid), -MAX_VOLTAGE, MAX_VOLTAGE); //this side seems less powerful on the robot
-        ll = (int32_t)std::clamp(lscale * (l_velocity_pid - l_angle_pid), -MAX_VOLTAGE, MAX_VOLTAGE);
-        ru = (int32_t)std::clamp(rscale * (r_velocity_pid + r_angle_pid), -MAX_VOLTAGE, MAX_VOLTAGE);
-        rl = (int32_t)std::clamp(rscale * (r_velocity_pid - r_angle_pid), -MAX_VOLTAGE, MAX_VOLTAGE);
-    
-
-        luA.move_voltage(lu);
-        luB.move_voltage(lu);
-
-        llA.move_voltage(ll);
-        llB.move_voltage(ll);
-
-        ruA.move_voltage(ru);
-        ruB.move_voltage(ru);
-
-        rlA.move_voltage(rl);
-        rlB.move_voltage(rl);
-    
-        pros::delay(1);
+        pros::delay(10);
     }
 }
 
@@ -600,6 +602,8 @@ std::vector<Waypoint> ImportWaypointConfig(std::string config)
                 double directionvalue = std::stod(direction) / TO_DEGREES;
                 double velocityx = std::stod(magnitude) * std::cos(directionvalue);
                 double velocityy = std::stod(magnitude) * std::sin(directionvalue);
+
+                //construct the position and velocity vectors
                 vector3D position = vector3D(std::stod(xValue), std::stod(yValue), 0);
                 vector3D velocity = vector3D(velocityx, velocityy);
 
@@ -627,55 +631,31 @@ std::vector<Waypoint> ImportWaypointConfig(std::string config)
     return waypoints;
 }
 
-struct Point{ // A struct to represent a single point in the lookup table
-    double x; //u value
-    double y; //angle value
-    Point(double x, double y)
-        : x(x), y(y) {}
-};
+vector3D HermiteSplineVelocity( //calculate the vector velocity of the spline at any point
+    double t,
+    vector3D P0, // Start point (x, y)
+    vector3D P1, // End point (x, y)
+    vector3D M0, // Tangent at start (x, y)
+    vector3D M1  // Tangent at end (x, y)
+) {
+    // Compute coefficients for x-component
+    double a1x = M0.x;
+    double a2x = -3 * P0.x - 2 * M0.x + 3 * P1.x - M1.x;
+    double a3x = 2 * P0.x + M0.x - 2 * P1.x + M1.x;
 
-double linearInterpolate(const std::vector<Point>& points, double x) { // Function to perform linear interpolation in the orientation lookup tables
-    //Ensure the lookup table is sorted by x
-    auto compare = [](const Point& a, const Point& b) { return a.x < b.x; };
-    auto it = std::lower_bound(points.begin(), points.end(), Point{x, 0.0}, compare);
+    // Compute coefficients for y-component
+    double a1y = M0.y;
+    double a2y = -3 * P0.y - 2 * M0.y + 3 * P1.y - M1.y;
+    double a3y = 2 * P0.y + M0.y - 2 * P1.y + M1.y;
 
-    // Handle cases where x is out of range
-    if (it == points.begin()) {
-        return points.front().y; // Return the first y-value if x is too small
-    }
-    if (it == points.end()) {
-        return points.back().y; // Return the last y-value if x is too large
-    }
+    // Compute velocity using the derivative of the cubic polynomial
+    double vx = a1x + 2 * a2x * t + 3 * a3x * t * t;
+    double vy = a1y + 2 * a2y * t + 3 * a3y * t * t;
 
-    // Find the two points for interpolation
-    auto p2 = *it;
-    auto p1 = *(it - 1);
-
-    double slope = (p2.y - p1.y) / (p2.x - p1.x);     // Perform linear interpolation
-    return p1.y + slope * (x - p1.x);
-}
-
-std::vector<Point> generateLocalLookupTable(double startValue, double endValue, std::vector<Point> GlobalLookupTable, double resolution) //generates a subtable of a larger lookup table
-{
-    std::vector<Point> LocalLookupTable = {
-        {}
-    };
-    LocalLookupTable.emplace_back(0, linearInterpolate(GlobalLookupTable, startValue)); //input the start point of the lookup table
-    for(double i = 0.01; i < 0.99; i = i + (1 / resolution)) //input all the points in the middle of the lookup table
-    //range of the for loop is from 0.01 < x < 0.99 so that we do not repeat the points at x = 0 and x = 1
-        LocalLookupTable.emplace_back(i, linearInterpolate(GlobalLookupTable, i + startValue));
-    LocalLookupTable.emplace_back(1, linearInterpolate(GlobalLookupTable, endValue)); //input the end point of the lookup table
-    for(int i = 0; i < LocalLookupTable.size(); i++)
-    {
-        std::cout << "LocalLookupTable point " << i << " x value is " << LocalLookupTable[i].x << std::endl;
-        std::cout << "LocalLookupTable point " << i << " y value is " << LocalLookupTable[i].y << std::endl;
-    }
-
-    return LocalLookupTable;
+    return vector3D(vx, vy);
 }
 
 void GetNextStep(std::vector<MotionStepCommand>& Steps, vector3D NewRobotPosition, double NewRobotOrientation, vector3D PreviousLeftWheelPosition, vector3D PreviousRightWheelPosition) {
-
     std::cout << "newrobotposition.x" << NewRobotPosition.x << std::endl;
     std::cout << "newrobotposition.y" << NewRobotPosition.y << std::endl;
     std::cout << "newrobotorientation" << NewRobotOrientation << std::endl;
@@ -727,14 +707,14 @@ void GetNextStep(std::vector<MotionStepCommand>& Steps, vector3D NewRobotPositio
     Steps.push_back(MotionStepCommand(LeftStep.magnitude(), LeftStep.getAngle(), RightStep.magnitude(), RightStep.getAngle())); //encode the step information into the Steps list
 }
 
-StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vStart, vector3D vEnd, double StepLength, std::vector<Point> LocalOrientationLookupTable) {
+StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vStart, vector3D vEnd, double StepLength, double OrientationToMaintain) {
     StepCommandList StepCL; //this list will store all the step motion data that causes the robot to execute the path
 
     //THIS PRODUCES THE HERMITE SPLINE COEFFICIENTS. THESE ARE NOT CONSTANTS FOR YOU TO TUNE. DO NOT CHANGE THESE CONSTANTS.
     StepCL.cax = (2.0 * pStart.x) + vStart.x - (2.0 * pEnd.x) + vEnd.x;
     StepCL.cay = (2.0 * pStart.y) + vStart.y - (2.0 * pEnd.y) + vEnd.y;
-    StepCL.cbx = (-3.0 * pStart.x) - (2.0 * vStart.x) + 3.0 * pEnd.x - vEnd.x;
-    StepCL.cby = (-3.0 * pStart.y) - (2.0 * vStart.y) + 3.0 * pEnd.y - vEnd.y;
+    StepCL.cbx = (-3.0 * pStart.x) - (2.0 * vStart.x) + (3.0 * pEnd.x) - vEnd.x;
+    StepCL.cby = (-3.0 * pStart.y) - (2.0 * vStart.y) + (3.0 * pEnd.y) - vEnd.y;
     StepCL.ccx = vStart.x;
     StepCL.ccy = vStart.y;
     StepCL.cdx = pStart.x;
@@ -757,8 +737,11 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
     };
 
     vector3D CurrentRobotPosition = pStart; //current robot position is simply the position of the robot at the start of the motion
-    double CurrentRobotOrientation = LocalOrientationLookupTable[0].y;
-    double mEnd = LocalOrientationLookupTable.back().y;
+    double CurrentRobotOrientation;
+    if(OrientationToMaintain <= M_PI && OrientationToMaintain >= -M_PI)
+        CurrentRobotOrientation = OrientationToMaintain;
+    else
+        CurrentRobotOrientation = vStart.getAngle();
 
     for (double t = StepLength; t < 1.0; t += StepLength) { //StepLength is a value to be tuned. Smaller steps produce a more accurate motion but PWM the motors more aggressively, slowing the motion down.
         //apply C(t) equation to get CurrentRobotPosition
@@ -789,8 +772,11 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
         );
         std::cout << "newsteppositionx" << CurrentRobotPosition.x << std::endl;
         std::cout << "newsteppositiony" << CurrentRobotPosition.y << std::endl;
-        //apply LocalOrientationLookupTable to get CurrentRobotOrientation
-        CurrentRobotOrientation = linearInterpolate(LocalOrientationLookupTable, t); //orientation changes according to lookup table
+        if(OrientationToMaintain <= M_PI && OrientationToMaintain >= -M_PI)
+            CurrentRobotOrientation = OrientationToMaintain;        
+        else
+            CurrentRobotOrientation = HermiteSplineVelocity(t, pStart, pEnd, vStart, vEnd).getAngle(); //orientation is the tangential velocity of the robot at that point
+
 
         GetNextStep(StepCL.Steps, CurrentRobotPosition, CurrentRobotOrientation, PreviousLeftWheelPosition, PreviousRightWheelPosition);
     }
@@ -801,36 +787,24 @@ void move_auton(){ //execute full auton path
     //convert the config string into a big list of waypoints
     std::vector<Waypoint> waypoints = ImportWaypointConfig(
         "x2500.0y1500.0v110.0t180.0&x1500.0y1500.0v1100.0t180.0&x1500.0y2500.0v1000.0t180.0&");
-    std::vector<Point> GlobalOrientationLookupTable = { //plots u value in parameter space of spline paths (represented as x value in the table) against orientation angle (represented as y value in the table) 
-        {0, 0},
-        {1, 0},
-        {2, 0}
+
+    //if heading is from -M_PI to M_PI, maintain heading of zero during the motion (recommend that the heading to be maintained is the same as the heading at the start and end of the motion to prevent a sharp turn at the end of the motion)
+    //if heading is an out of range number, heading at any point will be the instantaneous velocity heading
+    std::vector<double> orientations = {
+        M_PI, 
+        1000 
     };
-    // Sort GlobalOrientationLookupTable by x (in case it's not already sorted)
-    std::sort(GlobalOrientationLookupTable.begin(), GlobalOrientationLookupTable.end(), [](const Point& a, const Point& b) {
-        return a.x < b.x;
-    });
-    for(int i = 0; i < GlobalOrientationLookupTable.size(); i++)
-    {
-        std::cout << "GlobalOrientationLookupTable point " << i << " x value is " << GlobalOrientationLookupTable[i].x << std::endl;
-        std::cout << "GlobalOrientationLookupTable point " << i << " y value is " << GlobalOrientationLookupTable[i].y << std::endl;
-    }
 
     int waypointIndex = 0; //note that this is the same as u value in parameter space
-    //generate the lookup table of orientations local to this path, based on the global lookup table
-    std::vector<Point> LocalOrientationLookupTable; //plots orientation angle against t value in parameter space of the CURRENT path NOT ALL OF THEM
-
     while(waypointIndex < waypoints.size() - 1) //run until all paths have been executed
     {
-        LocalOrientationLookupTable.clear();
-        LocalOrientationLookupTable = generateLocalLookupTable(waypointIndex, waypointIndex + 1, GlobalOrientationLookupTable, 10);
         StepCommandList stepCommands = GenerateHermitePath( //generate the path (in the form of a list of step commands for the robot to follow) to get from the current waypoint to the next waypoint
             waypoints[waypointIndex].position, 
             waypoints[waypointIndex + 1].position, 
             waypoints[waypointIndex].velocity, 
             waypoints[waypointIndex + 1].velocity,
             0.03, //step length of the path (length in parameter space not real space)
-            LocalOrientationLookupTable); //lookup table describing the orientation of the robot as it moves
+            orientations[waypointIndex]); //determines if the robot will maintain a set heading or not during the path, and if so, what the heading to maintain will be
 
         //execute the step command list to get from the current waypoint to the next waypoint
         for(int i = 0; i < (int)stepCommands.Steps.size(); i++){ //run until the path is fully executed
@@ -878,7 +852,7 @@ void initialize(){
     left_rotation_sensor.set_position(0);
     right_rotation_sensor.set_position(0);
 
-    //pros::Task move_base(moveBase);
+    pros::Task move_base(moveBase);
     //pros::Task serial_read(serialRead);
 
     //master.clear();
@@ -890,6 +864,7 @@ void opcontrol(){
         leftY = master.get_analog(ANALOG_LEFT_Y);
         rightX = master.get_analog(ANALOG_RIGHT_X);
         if(master.get_digital_new_press(DIGITAL_B)) autonomous();
+        if(master.get_digital_new_press(DIGITAL_A)) toggleBase = !toggleBase;
 
         pros::delay(5);
     }
