@@ -640,17 +640,22 @@ vector3D HermiteSplineVelocity( //calculate the vector velocity of the spline at
 ) {
     // Compute coefficients for x-component
     double a1x = M0.x;
-    double a2x = -3 * P0.x - 2 * M0.x + 3 * P1.x - M1.x;
-    double a3x = 2 * P0.x + M0.x - 2 * P1.x + M1.x;
+    double a2x = (-3 * P0.x) - (2 * M0.x) + (3 * P1.x) - M1.x;
+    double a3x = (2 * P0.x) + M0.x - (2 * P1.x) + M1.x;
 
     // Compute coefficients for y-component
     double a1y = M0.y;
-    double a2y = -3 * P0.y - 2 * M0.y + 3 * P1.y - M1.y;
-    double a3y = 2 * P0.y + M0.y - 2 * P1.y + M1.y;
+    double a2y = (-3 * P0.y) - (2 * M0.y) + (3 * P1.y) - M1.y;
+    double a3y = (2 * P0.y) + M0.y - (2 * P1.y) + M1.y;
 
     // Compute velocity using the derivative of the cubic polynomial
-    double vx = a1x + 2 * a2x * t + 3 * a3x * t * t;
-    double vy = a1y + 2 * a2y * t + 3 * a3y * t * t;
+    double vx = a1x + (2 * a2x * t) + (3 * a3x * t * t);
+    double vy = a1y + (2 * a2y * t) + (3 * a3y * t * t);
+
+    std::cout << "vx" << vx << std::endl;
+    std::cout << "vy" << vy << std::endl;
+
+
 
     return vector3D(vx, vy);
 }
@@ -666,10 +671,10 @@ void GetNextStep(std::vector<MotionStepCommand>& Steps, vector3D NewRobotPositio
 
     //apply definition of L(t) and R(t) to get current left and right wheel position
     //left and right displacements are the relative positions of the left and right wheels relative to the robot
-    double leftdispx = sin(NewRobotOrientation) * WHEEL_BASE_RADIUS;
-    double leftdispy = cos(NewRobotOrientation) * WHEEL_BASE_RADIUS;
-    double rightdispx = sin(NewRobotOrientation) * -1.0 * WHEEL_BASE_RADIUS;
-    double rightdispy = cos(NewRobotOrientation) * -1.0 * WHEEL_BASE_RADIUS;
+    double leftdispx = sin(NewRobotOrientation) * - 1.0 * WHEEL_BASE_RADIUS;
+    double leftdispy = cos(NewRobotOrientation) * -1.0 * WHEEL_BASE_RADIUS;
+    double rightdispx = sin(NewRobotOrientation) * WHEEL_BASE_RADIUS;
+    double rightdispy = cos(NewRobotOrientation) * WHEEL_BASE_RADIUS;
 
     double newlwheelposx = NewRobotPosition.x + leftdispx;
     double newlwheelposy = NewRobotPosition.y + leftdispy;
@@ -743,6 +748,10 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
     else
         CurrentRobotOrientation = vStart.getAngle();
 
+    int64_t currenttime = pros::micros();
+    int64_t prevtime;
+    int64_t dt = currenttime - prevtime;
+
     for (double t = StepLength; t < 1.0; t += StepLength) { //StepLength is a value to be tuned. Smaller steps produce a more accurate motion but PWM the motors more aggressively, slowing the motion down.
         //apply C(t) equation to get CurrentRobotPosition
         std::cout << "prevsteppositionx" << CurrentRobotPosition.x << std::endl;
@@ -751,10 +760,10 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
 
         //update previous left and right wheel positions
         //left and right displacements are the positions of the left and right wheels relative to the robot
-        double prevleftdispx = sin(CurrentRobotOrientation) * WHEEL_BASE_RADIUS;
-        double prevleftdispy = cos(CurrentRobotOrientation) * WHEEL_BASE_RADIUS;
-        double prevrightdispx = sin(CurrentRobotOrientation) * -1.0 * WHEEL_BASE_RADIUS;
-        double prevrightdispy = cos(CurrentRobotOrientation) * -1.0 * WHEEL_BASE_RADIUS;
+        double prevleftdispx = sin(CurrentRobotOrientation) * -1.0 * WHEEL_BASE_RADIUS;
+        double prevleftdispy = cos(CurrentRobotOrientation) * -1.0 * WHEEL_BASE_RADIUS;
+        double prevrightdispx = sin(CurrentRobotOrientation) * WHEEL_BASE_RADIUS;
+        double prevrightdispy = cos(CurrentRobotOrientation) * WHEEL_BASE_RADIUS;
         std::cout << "prevleftdispx" << prevleftdispx << std::endl;
         std::cout << "prevleftdispy" << prevleftdispy << std::endl;
         std::cout << "prevrightdispx" << prevrightdispx << std::endl;
@@ -764,6 +773,8 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
         vector3D previous_right_displacement = vector3D(prevrightdispx, prevrightdispy);
         vector3D PreviousLeftWheelPosition = CurrentRobotPosition + previous_left_displacement;
         vector3D PreviousRightWheelPosition = CurrentRobotPosition + previous_right_displacement;
+
+        vector3D prevRobotPosition = CurrentRobotPosition;
 
         //find new robot position
         CurrentRobotPosition = vector3D(
@@ -775,7 +786,21 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
         if(OrientationToMaintain <= M_PI && OrientationToMaintain >= -M_PI)
             CurrentRobotOrientation = OrientationToMaintain;        
         else
-            CurrentRobotOrientation = HermiteSplineVelocity(t, pStart, pEnd, vStart, vEnd).getAngle(); //orientation is the tangential velocity of the robot at that point
+        {
+            prevtime = currenttime;
+            currenttime = pros::micros();
+            dt = currenttime - prevtime;
+            std::cout << "dt" << dt << std::endl;
+            //CurrentRobotOrientation = HermiteSplineVelocity(t, pStart, pEnd, vStart, vEnd).getAngle(); //orientation is the tangential velocity of the robot at that point
+            double velocityx = (CurrentRobotPosition.x - prevRobotPosition.x) / dt;
+            double velocityy = (CurrentRobotPosition.y - prevRobotPosition.y) / dt;
+            vector3D velocity = vector3D(velocityx, velocityy);
+            std::cout << "velocityx" << velocityx << std::endl;
+            std::cout << "velocityy" << velocityy << std::endl;
+
+            CurrentRobotOrientation = velocity.getAngle();
+            std::cout << "velocityangle" << CurrentRobotOrientation << std::endl;
+        }
 
 
         GetNextStep(StepCL.Steps, CurrentRobotPosition, CurrentRobotOrientation, PreviousLeftWheelPosition, PreviousRightWheelPosition);
@@ -786,12 +811,12 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
 void move_auton(){ //execute full auton path
     //convert the config string into a big list of waypoints
     std::vector<Waypoint> waypoints = ImportWaypointConfig(
-        "x2500.0y1500.0v110.0t180.0&x1500.0y1500.0v1100.0t180.0&x1500.0y2500.0v1000.0t180.0&");
+        "x1500.0y1500.0v110.0t90.0&x2500.0y2500.0v1100.0t0.0&");
 
     //if heading is from -M_PI to M_PI, maintain heading of zero during the motion (recommend that the heading to be maintained is the same as the heading at the start and end of the motion to prevent a sharp turn at the end of the motion)
     //if heading is an out of range number, heading at any point will be the instantaneous velocity heading
     std::vector<double> orientations = {
-        M_PI, 
+        1000, 
         1000 
     };
 
@@ -803,7 +828,7 @@ void move_auton(){ //execute full auton path
             waypoints[waypointIndex + 1].position, 
             waypoints[waypointIndex].velocity, 
             waypoints[waypointIndex + 1].velocity,
-            0.03, //step length of the path (length in parameter space not real space)
+            0.1, //step length of the path (length in parameter space not real space)
             orientations[waypointIndex]); //determines if the robot will maintain a set heading or not during the path, and if so, what the heading to maintain will be
 
         //execute the step command list to get from the current waypoint to the next waypoint
