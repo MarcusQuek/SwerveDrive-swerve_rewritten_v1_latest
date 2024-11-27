@@ -921,12 +921,12 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
 void move_auton(){ //execute full auton path
     //convert the config string into a big list of waypoints
     std::vector<Waypoint> waypoints = ImportWaypointConfig( //if waypoint velocity parameter is too small, the path will fail.
-        "x500.0y500.0v1100.0t90.0&x1000.0y500.0v1100.0t90.0&x2000.0y2000.0v1500.0t0.0&");
+        "x500.0y500.0v1100.0t90.0&x1000.0y500.0v1100.0t90.0&x2000.0y2500.0v1400.0t45.0&");
 
     std::vector<Point> GlobalOrientationLookupTable = { //plots u value in parameter space of spline paths (represented as x value in the table) against orientation angle (represented as y value in the table) 
         {0, M_PI / 2},
         {1, M_PI / 2},
-        {2, 0}};
+        {2, M_PI / 4}};
 
     std::vector<Point> LocalOrientationLookupTable = {};
 
