@@ -374,9 +374,8 @@ void pivotWheels(double l_target_angle, double r_target_angle, double allowed_er
     
     while(fabs( l_angle_error) > allowed_error || fabs( r_angle_error) > allowed_error){ //while we havent reached the target pivot angles
         //get the current pivot angles of the left and right wheels in radians
-        //subtract 90 degrees because the angle zero is defined as the positive x axis in the spline math but we want the zero angle to be defined as the wheels pointing to the front of the robot
-        left_angle = (getNormalizedSensorAngle(left_rotation_sensor) - 90.0) * TO_RADIANS; //note that the function getNormalizedSensorAngle already implements wrapAngle to bound the angle between -180 and 180 degrees
-        right_angle = (getNormalizedSensorAngle(right_rotation_sensor) - 90.0) * TO_RADIANS;
+        left_angle = (getNormalizedSensorAngle(left_rotation_sensor)) * TO_RADIANS; //note that the function getNormalizedSensorAngle already implements wrapAngle to bound the angle between -180 and 180 degrees
+        right_angle = (getNormalizedSensorAngle(right_rotation_sensor)) * TO_RADIANS;
         //update pivot angle errors
         pros::lcd::print(0, "A");
 
@@ -440,8 +439,8 @@ void rotateWheels(double l_distance, double r_distance, double allowed_error){ /
     double r_distance_error = r_distance;
 
     //pivot angles of the wheel at the start of the motion, we MUST maintain these pivot angles so the robot moves straight
-    double l_angleMaintain = (getNormalizedSensorAngle(left_rotation_sensor) - 90.0) * TO_RADIANS; //note that the function getNormalizedSensorAngle already implements wrapAngle to bound the angle between -180 and 180 degrees
-    double r_angleMaintain = (getNormalizedSensorAngle(right_rotation_sensor) - 90.0) * TO_RADIANS; //note that the function getNormalizedSensorAngle already implements wrapAngle to bound the angle between -180 and 180 degrees
+    double l_angleMaintain = getNormalizedSensorAngle(left_rotation_sensor) * TO_RADIANS; //note that the function getNormalizedSensorAngle already implements wrapAngle to bound the angle between -180 and 180 degrees
+    double r_angleMaintain = getNormalizedSensorAngle(right_rotation_sensor) * TO_RADIANS; //note that the function getNormalizedSensorAngle already implements wrapAngle to bound the angle between -180 and 180 degrees
 
     double left_angle, right_angle; //numerical angle for each wheel in radians from -pi to pi
     //steering angle error
@@ -453,11 +452,7 @@ void rotateWheels(double l_distance, double r_distance, double allowed_error){ /
     //power output for translation component of pid
     double l_distance_pid = 0.0;
     double r_distance_pid = 0.0;
-    //scaling down the power depending on how wrong the wheel aiming angle is
-    //limited by base_v = 0.7 in definitions.h
-    double lscale = 0;
-    double rscale = 0;
-
+    
     int32_t lu; //voltage variables for the four motor pairs of the base
     int32_t ll;
     int32_t ru;
@@ -478,22 +473,27 @@ void rotateWheels(double l_distance, double r_distance, double allowed_error){ /
         l_distance_moved = ((luA.get_position()+luB.get_position()+llA.get_position()+llB.get_position())/4.0) / ticks_per_mm;
         r_distance_moved = ((ruA.get_position()+ruB.get_position()+rlA.get_position()+rlB.get_position())/4.0) / ticks_per_mm;
 
-        pros::lcd::print(0, "l_distance_moved %lf", l_distance_moved);
-        pros::lcd::print(1, "r_distance_moved %lf", r_distance_moved);
+        std::cout << "....................................PID..................................." << std::endl;
+
+        std::cout << "l_distance" << l_distance << std::endl;
+        std::cout << "r_distance" << r_distance << std::endl;
+        std::cout << "l_distance_moved" << l_distance_moved << std::endl;
+        std::cout << "r_distance_moved" << r_distance_moved << std::endl;
 
         l_distance_error = l_distance - l_distance_moved; //calculate the error distance
         r_distance_error = r_distance - r_distance_moved;
 
-        pros::lcd::print(2, "l_distance_error %lf", l_distance_error);
-        pros::lcd::print(3, "r_distance_error %lf", r_distance_error);
+        std::cout << "l_distance_error" << l_distance_error << std::endl;
+        std::cout << "r_distance_error" << r_distance_error << std::endl;
         
         //get the current pivot angles of the left and right wheels in radians
-        //subtract 90 degrees because the angle zero is defined as the positive x axis in the spline math but we want the zero angle to be defined as the wheels pointing to the front of the robot
-        left_angle = (getNormalizedSensorAngle(left_rotation_sensor) - 90.0) * TO_RADIANS; //note that the function getNormalizedSensorAngle already implements wrapAngle to bound the angle between -180 and 180 degrees
-        right_angle = (getNormalizedSensorAngle(right_rotation_sensor) - 90.0) * TO_RADIANS;
+        left_angle = getNormalizedSensorAngle(left_rotation_sensor) * TO_RADIANS; //note that the function getNormalizedSensorAngle already implements wrapAngle to bound the angle between -180 and 180 degrees
+        right_angle = getNormalizedSensorAngle(right_rotation_sensor) * TO_RADIANS;
 
-        pros::lcd::print(4, "left_angle %lf", left_angle);
-        pros::lcd::print(5, "right_angle %lf", right_angle);
+        std::cout << "l_angleMaintain" << l_angleMaintain << std::endl;
+        std::cout << "r_angleMaintain" << r_angleMaintain << std::endl;
+        std::cout << "left_angle" << left_angle << std::endl;
+        std::cout << "right_angle" << right_angle << std::endl;
 
         // calculate the error angle
         vector3D l_target_angle = vector3D(cos(l_angleMaintain), sin(l_angleMaintain), 0);
@@ -504,26 +504,26 @@ void rotateWheels(double l_distance, double r_distance, double allowed_error){ /
         l_error = angle(l_current_angle, l_target_angle);
         r_error = angle(r_current_angle, r_target_angle);
 
-        // pros::lcd::print(6, "l_error %lf", l_error);
-        // pros::lcd::print(7, "r_error %lf", r_error);
+        std::cout << "l_error" << l_error << std::endl;
+        std::cout << "r_error" << r_error << std::endl;
 
         //calculate the PID output
         l_angle_pid = left_angle_PID.step(l_error);
         r_angle_pid = right_angle_PID.step(r_error);
 
-        // pros::lcd::print(6, "1_angle_pid %lf", l_angle_pid); 
-        // pros::lcd::print(7, "r_angle_pid %lf", r_angle_pid);
+        std::cout << "l_angle_pid" << l_angle_pid << std::endl;
+        std::cout << "r_angle_pid" << r_angle_pid << std::endl;
 
         l_distance_pid = left_distance_PID.step(l_distance_error);
         r_distance_pid = right_distance_PID.step(r_distance_error);
 
-        pros::lcd::print(6, "l_distance_pid %lf", l_distance_pid);
-        pros::lcd::print(7, "r_distance_pid %lf", r_distance_pid);
+        std::cout << "l_distance_pid" << l_distance_pid << std::endl;
+        std::cout << "r_distance_pid" << r_distance_pid << std::endl;
 
-        lu = (int32_t)(scale * (l_distance_pid + l_angle_pid));//this side seems less powerful on the robot
-        ll = (int32_t)(scale * (l_distance_pid - l_angle_pid));    
-        ru = (int32_t)(scale * (r_distance_pid + r_angle_pid));
-        rl = (int32_t)(scale * (r_distance_pid - r_angle_pid));
+        lu = (int32_t)(l_distance_pid + l_angle_pid);//this side seems less powerful on the robot
+        ll = (int32_t)(l_distance_pid - l_angle_pid);    
+        ru = (int32_t)(r_distance_pid + r_angle_pid);
+        rl = (int32_t)(r_distance_pid - r_angle_pid);
 
         luA.move_velocity(lu);
         luB.move_velocity(lu);
@@ -599,7 +599,8 @@ std::vector<Waypoint> ImportWaypointConfig(std::string config)
             if (config[i] == '&') {
                 i++; // skip over the & character
                 //convert the velocity polar vector into a xy vector
-                double directionvalue = std::stod(direction) / TO_DEGREES;
+                double directionvalue = std::stod(direction) * TO_RADIANS;
+                //directionvalue = directionvalue - (M_PI / 2);
                 double velocityx = std::stod(magnitude) * std::cos(directionvalue);
                 double velocityy = std::stod(magnitude) * std::sin(directionvalue);
 
@@ -631,35 +632,6 @@ std::vector<Waypoint> ImportWaypointConfig(std::string config)
     return waypoints;
 }
 
-vector3D HermiteSplineVelocity( //calculate the vector velocity of the spline at any point
-    double t,
-    vector3D P0, // Start point (x, y)
-    vector3D P1, // End point (x, y)
-    vector3D M0, // Tangent at start (x, y)
-    vector3D M1  // Tangent at end (x, y)
-) {
-    // Compute coefficients for x-component
-    double a1x = M0.x;
-    double a2x = (-3 * P0.x) - (2 * M0.x) + (3 * P1.x) - M1.x;
-    double a3x = (2 * P0.x) + M0.x - (2 * P1.x) + M1.x;
-
-    // Compute coefficients for y-component
-    double a1y = M0.y;
-    double a2y = (-3 * P0.y) - (2 * M0.y) + (3 * P1.y) - M1.y;
-    double a3y = (2 * P0.y) + M0.y - (2 * P1.y) + M1.y;
-
-    // Compute velocity using the derivative of the cubic polynomial
-    double vx = a1x + (2 * a2x * t) + (3 * a3x * t * t);
-    double vy = a1y + (2 * a2y * t) + (3 * a3y * t * t);
-
-    std::cout << "vx" << vx << std::endl;
-    std::cout << "vy" << vy << std::endl;
-
-
-
-    return vector3D(vx, vy);
-}
-
 void GetNextStep(std::vector<MotionStepCommand>& Steps, vector3D NewRobotPosition, double NewRobotOrientation, vector3D PreviousLeftWheelPosition, vector3D PreviousRightWheelPosition) {
     std::cout << "newrobotposition.x" << NewRobotPosition.x << std::endl;
     std::cout << "newrobotposition.y" << NewRobotPosition.y << std::endl;
@@ -671,20 +643,79 @@ void GetNextStep(std::vector<MotionStepCommand>& Steps, vector3D NewRobotPositio
 
     //apply definition of L(t) and R(t) to get current left and right wheel position
     //left and right displacements are the relative positions of the left and right wheels relative to the robot
-    double leftdispx = sin(NewRobotOrientation) * - 1.0 * WHEEL_BASE_RADIUS;
-    double leftdispy = cos(NewRobotOrientation) * -1.0 * WHEEL_BASE_RADIUS;
-    double rightdispx = sin(NewRobotOrientation) * WHEEL_BASE_RADIUS;
-    double rightdispy = cos(NewRobotOrientation) * WHEEL_BASE_RADIUS;
+    double prevleftdispx, prevleftdispy, prevrightdispx, prevrightdispy;
+    double acuteAngle; //the acute angle between the robot direction vector and the x axis
 
-    double newlwheelposx = NewRobotPosition.x + leftdispx;
-    double newlwheelposy = NewRobotPosition.y + leftdispy;
-    double newrwheelposx = NewRobotPosition.x + rightdispx;
-    double newrwheelposy = NewRobotPosition.y + rightdispy;
+    if(NewRobotOrientation > -M_PI && NewRobotOrientation < -M_PI / 2)
+    {
+        acuteAngle = NewRobotOrientation + M_PI;
+        prevleftdispx = sin(acuteAngle) * WHEEL_BASE_RADIUS;
+        prevleftdispy = -cos(acuteAngle) * WHEEL_BASE_RADIUS;
+        prevrightdispx = -sin(acuteAngle) * WHEEL_BASE_RADIUS;
+        prevrightdispy = cos(acuteAngle) * WHEEL_BASE_RADIUS;
+    }
+    else if(NewRobotOrientation == -M_PI / 2)
+    {
+        prevleftdispx = WHEEL_BASE_RADIUS;
+        prevleftdispy = 0;
+        prevrightdispx = -WHEEL_BASE_RADIUS;
+        prevrightdispy = 0;
+    }
+    else if(NewRobotOrientation > -M_PI / 2 && NewRobotOrientation < 0)
+    {
+        acuteAngle = -NewRobotOrientation;
+        prevleftdispx = sin(acuteAngle) * WHEEL_BASE_RADIUS;
+        prevleftdispy = cos(acuteAngle) * WHEEL_BASE_RADIUS;
+        prevrightdispx = -sin(acuteAngle) * WHEEL_BASE_RADIUS;
+        prevrightdispy = -cos(acuteAngle) * WHEEL_BASE_RADIUS;
+    }
+    else if(NewRobotOrientation == 0)
+    {
+        prevleftdispx = 0;
+        prevleftdispy = WHEEL_BASE_RADIUS;
+        prevrightdispx = 0;
+        prevrightdispy = -WHEEL_BASE_RADIUS;
+    }
+    else if(NewRobotOrientation > 0 && NewRobotOrientation < M_PI / 2)
+    {
+        acuteAngle = NewRobotOrientation;
+        prevleftdispx = -sin(acuteAngle) * WHEEL_BASE_RADIUS;
+        prevleftdispy = cos(acuteAngle) * WHEEL_BASE_RADIUS;
+        prevrightdispx = sin(acuteAngle) * WHEEL_BASE_RADIUS;
+        prevrightdispy = -cos(acuteAngle) * WHEEL_BASE_RADIUS;
+    }
+    else if(NewRobotOrientation == M_PI / 2)
+    {
+        prevleftdispx = -WHEEL_BASE_RADIUS;
+        prevleftdispy = 0;
+        prevrightdispx = WHEEL_BASE_RADIUS;
+        prevrightdispy = 0;
+    }
+    else if(NewRobotOrientation > M_PI / 2 && NewRobotOrientation < M_PI)
+    {
+        acuteAngle = M_PI - NewRobotOrientation;
+        prevleftdispx = -sin(acuteAngle) * WHEEL_BASE_RADIUS;
+        prevleftdispy = -cos(acuteAngle) * WHEEL_BASE_RADIUS;
+        prevrightdispx = sin(acuteAngle) * WHEEL_BASE_RADIUS;
+        prevrightdispy = cos(acuteAngle) * WHEEL_BASE_RADIUS;
+    }
+    else
+    {
+        prevleftdispx = 0;
+        prevleftdispy = -WHEEL_BASE_RADIUS;
+        prevrightdispx = 0;
+        prevrightdispy = WHEEL_BASE_RADIUS;
+    }
+    
+    double newlwheelposx = NewRobotPosition.x + prevleftdispx;
+    double newlwheelposy = NewRobotPosition.y + prevleftdispy;
+    double newrwheelposx = NewRobotPosition.x + prevrightdispx;
+    double newrwheelposy = NewRobotPosition.y + prevrightdispy;
 
-    std::cout << "leftdisp.x" << leftdispx << std::endl;
-    std::cout << "leftdisp.y" << leftdispy << std::endl;
-    std::cout << "rightdisp.x" << rightdispx << std::endl;
-    std::cout << "rightdisp.y" << rightdispy << std::endl;
+    std::cout << "leftdisp.x" << prevleftdispx << std::endl;
+    std::cout << "leftdisp.y" << prevleftdispy << std::endl;
+    std::cout << "rightdisp.x" << prevrightdispx << std::endl;
+    std::cout << "rightdisp.y" << prevrightdispy << std::endl;
 
     std::cout << "newlwheelpos.x" << newlwheelposx << std::endl;
     std::cout << "newlwheelpos.y" << newlwheelposy << std::endl;
@@ -748,22 +779,81 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
     else
         CurrentRobotOrientation = vStart.getAngle();
 
-    int64_t currenttime = pros::micros();
-    int64_t prevtime;
-    int64_t dt = currenttime - prevtime;
-
     for (double t = StepLength; t < 1.0; t += StepLength) { //StepLength is a value to be tuned. Smaller steps produce a more accurate motion but PWM the motors more aggressively, slowing the motion down.
         //apply C(t) equation to get CurrentRobotPosition
+        std::cout << "..........................................START NEW ITERATION................................................................" << std::endl;
+
         std::cout << "prevsteppositionx" << CurrentRobotPosition.x << std::endl;
         std::cout << "prevsteppositiony" << CurrentRobotPosition.y << std::endl;
         std::cout << "prevsteporientation" << CurrentRobotOrientation << std::endl;
 
         //update previous left and right wheel positions
-        //left and right displacements are the positions of the left and right wheels relative to the robot
-        double prevleftdispx = sin(CurrentRobotOrientation) * -1.0 * WHEEL_BASE_RADIUS;
-        double prevleftdispy = cos(CurrentRobotOrientation) * -1.0 * WHEEL_BASE_RADIUS;
-        double prevrightdispx = sin(CurrentRobotOrientation) * WHEEL_BASE_RADIUS;
-        double prevrightdispy = cos(CurrentRobotOrientation) * WHEEL_BASE_RADIUS;
+        //apply definition of L(t) and R(t) to get current left and right wheel position
+
+        //left and right displacements are the relative positions of the left and right wheels relative to the robot
+        double prevleftdispx, prevleftdispy, prevrightdispx, prevrightdispy;
+        double acuteAngle; //the acute angle between the robot direction vector and the x axis
+
+        if(CurrentRobotOrientation > -M_PI && CurrentRobotOrientation < -M_PI / 2)
+        {
+            acuteAngle = CurrentRobotOrientation + M_PI;
+            prevleftdispx = sin(acuteAngle) * WHEEL_BASE_RADIUS;
+            prevleftdispy = -cos(acuteAngle) * WHEEL_BASE_RADIUS;
+            prevrightdispx = -sin(acuteAngle) * WHEEL_BASE_RADIUS;
+            prevrightdispy = cos(acuteAngle) * WHEEL_BASE_RADIUS;
+        }
+        else if(CurrentRobotOrientation == -M_PI / 2)
+        {
+            prevleftdispx = WHEEL_BASE_RADIUS;
+            prevleftdispy = 0;
+            prevrightdispx = -WHEEL_BASE_RADIUS;
+            prevrightdispy = 0;
+        }
+        else if(CurrentRobotOrientation > -M_PI / 2 && CurrentRobotOrientation < 0)
+        {
+            acuteAngle = -CurrentRobotOrientation;
+            prevleftdispx = sin(acuteAngle) * WHEEL_BASE_RADIUS;
+            prevleftdispy = cos(acuteAngle) * WHEEL_BASE_RADIUS;
+            prevrightdispx = -sin(acuteAngle) * WHEEL_BASE_RADIUS;
+            prevrightdispy = -cos(acuteAngle) * WHEEL_BASE_RADIUS;
+        }
+        else if(CurrentRobotOrientation == 0)
+        {
+            prevleftdispx = 0;
+            prevleftdispy = WHEEL_BASE_RADIUS;
+            prevrightdispx = 0;
+            prevrightdispy = -WHEEL_BASE_RADIUS;
+        }
+        else if(CurrentRobotOrientation > 0 && CurrentRobotOrientation < M_PI / 2)
+        {
+            acuteAngle = CurrentRobotOrientation;
+            prevleftdispx = -sin(acuteAngle) * WHEEL_BASE_RADIUS;
+            prevleftdispy = cos(acuteAngle) * WHEEL_BASE_RADIUS;
+            prevrightdispx = sin(acuteAngle) * WHEEL_BASE_RADIUS;
+            prevrightdispy = -cos(acuteAngle) * WHEEL_BASE_RADIUS;
+        }
+        else if(CurrentRobotOrientation == M_PI / 2)
+        {
+            prevleftdispx = -WHEEL_BASE_RADIUS;
+            prevleftdispy = 0;
+            prevrightdispx = WHEEL_BASE_RADIUS;
+            prevrightdispy = 0;
+        }
+        else if(CurrentRobotOrientation > M_PI / 2 && CurrentRobotOrientation < M_PI)
+        {
+            acuteAngle = M_PI - CurrentRobotOrientation;
+            prevleftdispx = -sin(acuteAngle) * WHEEL_BASE_RADIUS;
+            prevleftdispy = -cos(acuteAngle) * WHEEL_BASE_RADIUS;
+            prevrightdispx = sin(acuteAngle) * WHEEL_BASE_RADIUS;
+            prevrightdispy = cos(acuteAngle) * WHEEL_BASE_RADIUS;
+        }
+        else
+        {
+            prevleftdispx = 0;
+            prevleftdispy = -WHEEL_BASE_RADIUS;
+            prevrightdispx = 0;
+            prevrightdispy = WHEEL_BASE_RADIUS;
+        }
         std::cout << "prevleftdispx" << prevleftdispx << std::endl;
         std::cout << "prevleftdispy" << prevleftdispy << std::endl;
         std::cout << "prevrightdispx" << prevrightdispx << std::endl;
@@ -787,13 +877,9 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
             CurrentRobotOrientation = OrientationToMaintain;        
         else
         {
-            prevtime = currenttime;
-            currenttime = pros::micros();
-            dt = currenttime - prevtime;
-            std::cout << "dt" << dt << std::endl;
             //CurrentRobotOrientation = HermiteSplineVelocity(t, pStart, pEnd, vStart, vEnd).getAngle(); //orientation is the tangential velocity of the robot at that point
-            double velocityx = (CurrentRobotPosition.x - prevRobotPosition.x) / dt;
-            double velocityy = (CurrentRobotPosition.y - prevRobotPosition.y) / dt;
+            double velocityx = (CurrentRobotPosition.x - prevRobotPosition.x);
+            double velocityy = (CurrentRobotPosition.y - prevRobotPosition.y);
             vector3D velocity = vector3D(velocityx, velocityy);
             std::cout << "velocityx" << velocityx << std::endl;
             std::cout << "velocityy" << velocityy << std::endl;
@@ -810,10 +896,10 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
 
 void move_auton(){ //execute full auton path
     //convert the config string into a big list of waypoints
-    std::vector<Waypoint> waypoints = ImportWaypointConfig(
-        "x1500.0y1500.0v110.0t90.0&x2500.0y2500.0v1100.0t0.0&");
+    std::vector<Waypoint> waypoints = ImportWaypointConfig( //if waypoint velocity parameter is too small, the path will fail.
+        "x500.0y500.0v1100.0t90.0&x500.0y1500.0v1100.0t90.0&");
 
-    //if heading is from -M_PI to M_PI, maintain heading of zero during the motion (recommend that the heading to be maintained is the same as the heading at the start and end of the motion to prevent a sharp turn at the end of the motion)
+    //if heading is from -M_PI to M_PI, maintain heading of zero during the motion (recommend that the heading to be maintained is the same as the heading at the start and end of the motion to prevent a sharp turn at the start/end of the motion)
     //if heading is an out of range number, heading at any point will be the instantaneous velocity heading
     std::vector<double> orientations = {
         1000, 
@@ -834,7 +920,7 @@ void move_auton(){ //execute full auton path
         //execute the step command list to get from the current waypoint to the next waypoint
         for(int i = 0; i < (int)stepCommands.Steps.size(); i++){ //run until the path is fully executed
             MotionStepCommand current_command(stepCommands.Steps[i]); //get the current step command
-
+            std::cout << "......................................START NEW STEP..................................." << std::endl;
             std::cout << "Lpivot" << current_command.Lpivot << std::endl;
             std::cout << "Rpivot" << current_command.Rpivot << std::endl;
             std::cout << "Lmove" << current_command.Lmove << std::endl;

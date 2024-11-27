@@ -127,11 +127,11 @@ const double angle_kP = 28.0;   //swerve wheel pivoting in driver control and au
 const double angle_kI = 0.00;
 const double angle_kD = 5000.0;
 
-const double distance_kP = 30.0; //swerve wheel rotation distance for auton
+const double distance_kP = 0.32; //swerve wheel rotation distance for auton
 const double distance_kI = 0.0;
-const double distance_kD = 500.0;
+const double distance_kD = 100.0;
 
-const double MAX_VOLTAGE = 12000;
+const double MAX_VOLTAGE = 12000; //millivolts
 
 const double velocity_kP = 0.002;   //swerve wheel rotation velocity for driver
 const double velocity_kI = 0.000;
