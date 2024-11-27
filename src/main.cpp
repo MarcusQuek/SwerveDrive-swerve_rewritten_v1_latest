@@ -473,27 +473,27 @@ void rotateWheels(double l_distance, double r_distance, double allowed_error){ /
         l_distance_moved = ((luA.get_position()+luB.get_position()+llA.get_position()+llB.get_position())/4.0) / ticks_per_mm;
         r_distance_moved = ((ruA.get_position()+ruB.get_position()+rlA.get_position()+rlB.get_position())/4.0) / ticks_per_mm;
 
-        std::cout << "....................................PID..................................." << std::endl;
+        // std::cout << "....................................PID..................................." << std::endl;
 
-        std::cout << "l_distance" << l_distance << std::endl;
-        std::cout << "r_distance" << r_distance << std::endl;
-        std::cout << "l_distance_moved" << l_distance_moved << std::endl;
-        std::cout << "r_distance_moved" << r_distance_moved << std::endl;
+        // std::cout << "l_distance" << l_distance << std::endl;
+        // std::cout << "r_distance" << r_distance << std::endl;
+        // std::cout << "l_distance_moved" << l_distance_moved << std::endl;
+        // std::cout << "r_distance_moved" << r_distance_moved << std::endl;
 
         l_distance_error = l_distance - l_distance_moved; //calculate the error distance
         r_distance_error = r_distance - r_distance_moved;
 
-        std::cout << "l_distance_error" << l_distance_error << std::endl;
-        std::cout << "r_distance_error" << r_distance_error << std::endl;
+        // std::cout << "l_distance_error" << l_distance_error << std::endl;
+        // std::cout << "r_distance_error" << r_distance_error << std::endl;
         
         //get the current pivot angles of the left and right wheels in radians
         left_angle = getNormalizedSensorAngle(left_rotation_sensor) * TO_RADIANS; //note that the function getNormalizedSensorAngle already implements wrapAngle to bound the angle between -180 and 180 degrees
         right_angle = getNormalizedSensorAngle(right_rotation_sensor) * TO_RADIANS;
 
-        std::cout << "l_angleMaintain" << l_angleMaintain << std::endl;
-        std::cout << "r_angleMaintain" << r_angleMaintain << std::endl;
-        std::cout << "left_angle" << left_angle << std::endl;
-        std::cout << "right_angle" << right_angle << std::endl;
+        // std::cout << "l_angleMaintain" << l_angleMaintain << std::endl;
+        // std::cout << "r_angleMaintain" << r_angleMaintain << std::endl;
+        // std::cout << "left_angle" << left_angle << std::endl;
+        // std::cout << "right_angle" << right_angle << std::endl;
 
         // calculate the error angle
         vector3D l_target_angle = vector3D(cos(l_angleMaintain), sin(l_angleMaintain), 0);
@@ -504,21 +504,21 @@ void rotateWheels(double l_distance, double r_distance, double allowed_error){ /
         l_error = angle(l_current_angle, l_target_angle);
         r_error = angle(r_current_angle, r_target_angle);
 
-        std::cout << "l_error" << l_error << std::endl;
-        std::cout << "r_error" << r_error << std::endl;
+        // std::cout << "l_error" << l_error << std::endl;
+        // std::cout << "r_error" << r_error << std::endl;
 
         //calculate the PID output
         l_angle_pid = left_angle_PID.step(l_error);
         r_angle_pid = right_angle_PID.step(r_error);
 
-        std::cout << "l_angle_pid" << l_angle_pid << std::endl;
-        std::cout << "r_angle_pid" << r_angle_pid << std::endl;
+        // std::cout << "l_angle_pid" << l_angle_pid << std::endl;
+        // std::cout << "r_angle_pid" << r_angle_pid << std::endl;
 
         l_distance_pid = left_distance_PID.step(l_distance_error);
         r_distance_pid = right_distance_PID.step(r_distance_error);
 
-        std::cout << "l_distance_pid" << l_distance_pid << std::endl;
-        std::cout << "r_distance_pid" << r_distance_pid << std::endl;
+        // std::cout << "l_distance_pid" << l_distance_pid << std::endl;
+        // std::cout << "r_distance_pid" << r_distance_pid << std::endl;
 
         lu = (int32_t)(l_distance_pid + l_angle_pid);//this side seems less powerful on the robot
         ll = (int32_t)(l_distance_pid - l_angle_pid);    
@@ -600,7 +600,7 @@ std::vector<Waypoint> ImportWaypointConfig(std::string config)
                 i++; // skip over the & character
                 //convert the velocity polar vector into a xy vector
                 double directionvalue = std::stod(direction) * TO_RADIANS;
-                //directionvalue = directionvalue - (M_PI / 2);
+                directionvalue = directionvalue - (M_PI / 2);
                 double velocityx = std::stod(magnitude) * std::cos(directionvalue);
                 double velocityy = std::stod(magnitude) * std::sin(directionvalue);
 
@@ -897,7 +897,7 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
 void move_auton(){ //execute full auton path
     //convert the config string into a big list of waypoints
     std::vector<Waypoint> waypoints = ImportWaypointConfig( //if waypoint velocity parameter is too small, the path will fail.
-        "x500.0y500.0v1100.0t90.0&x500.0y1500.0v1100.0t90.0&");
+        "x500.0y500.0v1100.0t90.0&x1500.0y500.0v1100.0t90.0&x2500y2500v1100t0.0&");
 
     //if heading is from -M_PI to M_PI, maintain heading of zero during the motion (recommend that the heading to be maintained is the same as the heading at the start and end of the motion to prevent a sharp turn at the start/end of the motion)
     //if heading is an out of range number, heading at any point will be the instantaneous velocity heading
