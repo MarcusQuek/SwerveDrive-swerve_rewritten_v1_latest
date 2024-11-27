@@ -632,6 +632,47 @@ std::vector<Waypoint> ImportWaypointConfig(std::string config)
     return waypoints;
 }
 
+struct Point{ // A struct to represent a single point in the lookup table
+    double x; //u value
+    double y; //angle value
+    Point(double x, double y)
+        : x(x), y(y) {}
+};
+double linearInterpolate(const std::vector<Point>& points, double x) { // Function to perform linear interpolation in the orientation lookup tables
+    //Ensure the lookup table is sorted by x
+    auto compare = [](const Point& a, const Point& b) { return a.x < b.x; };
+    auto it = std::lower_bound(points.begin(), points.end(), Point{x, 0.0}, compare);
+    // Handle cases where x is out of range
+    if (it == points.begin()) {
+        return points.front().y; // Return the first y-value if x is too small
+    }
+    if (it == points.end()) {
+        return points.back().y; // Return the last y-value if x is too large
+    }
+    // Find the two points for interpolation
+    auto p2 = *it;
+    auto p1 = *(it - 1);
+    double slope = (p2.y - p1.y) / (p2.x - p1.x);     // Perform linear interpolation
+    return p1.y + slope * (x - p1.x);
+}
+std::vector<Point> generateLocalLookupTable(double startValue, double endValue, std::vector<Point> GlobalLookupTable, double resolution) //generates a subtable of a larger lookup table
+{
+    std::vector<Point> LocalLookupTable = {
+        {}
+    };
+    LocalLookupTable.emplace_back(0, linearInterpolate(GlobalLookupTable, startValue)); //input the start point of the lookup table
+    for(double i = 0.01; i < 0.99; i = i + (1 / resolution)) //input all the points in the middle of the lookup table
+    //range of the for loop is from 0.01 < x < 0.99 so that we do not repeat the points at x = 0 and x = 1
+        LocalLookupTable.emplace_back(i, linearInterpolate(GlobalLookupTable, i + startValue));
+    LocalLookupTable.emplace_back(1, linearInterpolate(GlobalLookupTable, endValue)); //input the end point of the lookup table
+    for(int i = 0; i < LocalLookupTable.size(); i++)
+    {
+        std::cout << "LocalLookupTable point " << i << " x value is " << LocalLookupTable[i].x << std::endl;
+        std::cout << "LocalLookupTable point " << i << " y value is " << LocalLookupTable[i].y << std::endl;
+    }
+    return LocalLookupTable;
+}
+
 void GetNextStep(std::vector<MotionStepCommand>& Steps, vector3D NewRobotPosition, double NewRobotOrientation, vector3D PreviousLeftWheelPosition, vector3D PreviousRightWheelPosition) {
     std::cout << "newrobotposition.x" << NewRobotPosition.x << std::endl;
     std::cout << "newrobotposition.y" << NewRobotPosition.y << std::endl;
@@ -743,7 +784,7 @@ void GetNextStep(std::vector<MotionStepCommand>& Steps, vector3D NewRobotPositio
     Steps.push_back(MotionStepCommand(LeftStep.magnitude(), LeftStep.getAngle(), RightStep.magnitude(), RightStep.getAngle())); //encode the step information into the Steps list
 }
 
-StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vStart, vector3D vEnd, double StepLength, double OrientationToMaintain) {
+StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vStart, vector3D vEnd, double StepLength, std::vector<Point> LocalOrientationLookupTable) {
     StepCommandList StepCL; //this list will store all the step motion data that causes the robot to execute the path
 
     //THIS PRODUCES THE HERMITE SPLINE COEFFICIENTS. THESE ARE NOT CONSTANTS FOR YOU TO TUNE. DO NOT CHANGE THESE CONSTANTS.
@@ -773,11 +814,7 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
     };
 
     vector3D CurrentRobotPosition = pStart; //current robot position is simply the position of the robot at the start of the motion
-    double CurrentRobotOrientation;
-    if(OrientationToMaintain <= M_PI && OrientationToMaintain >= -M_PI)
-        CurrentRobotOrientation = OrientationToMaintain;
-    else
-        CurrentRobotOrientation = vStart.getAngle();
+    double CurrentRobotOrientation = LocalOrientationLookupTable[0].y;
 
     for (double t = StepLength; t < 1.0; t += StepLength) { //StepLength is a value to be tuned. Smaller steps produce a more accurate motion but PWM the motors more aggressively, slowing the motion down.
         //apply C(t) equation to get CurrentRobotPosition
@@ -873,21 +910,8 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
         );
         std::cout << "newsteppositionx" << CurrentRobotPosition.x << std::endl;
         std::cout << "newsteppositiony" << CurrentRobotPosition.y << std::endl;
-        if(OrientationToMaintain <= M_PI && OrientationToMaintain >= -M_PI)
-            CurrentRobotOrientation = OrientationToMaintain;        
-        else
-        {
-            //CurrentRobotOrientation = HermiteSplineVelocity(t, pStart, pEnd, vStart, vEnd).getAngle(); //orientation is the tangential velocity of the robot at that point
-            double velocityx = (CurrentRobotPosition.x - prevRobotPosition.x);
-            double velocityy = (CurrentRobotPosition.y - prevRobotPosition.y);
-            vector3D velocity = vector3D(velocityx, velocityy);
-            std::cout << "velocityx" << velocityx << std::endl;
-            std::cout << "velocityy" << velocityy << std::endl;
-
-            CurrentRobotOrientation = velocity.getAngle();
-            std::cout << "velocityangle" << CurrentRobotOrientation << std::endl;
-        }
-
+        
+        CurrentRobotOrientation = linearInterpolate(LocalOrientationLookupTable, t);
 
         GetNextStep(StepCL.Steps, CurrentRobotPosition, CurrentRobotOrientation, PreviousLeftWheelPosition, PreviousRightWheelPosition);
     }
@@ -897,25 +921,27 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
 void move_auton(){ //execute full auton path
     //convert the config string into a big list of waypoints
     std::vector<Waypoint> waypoints = ImportWaypointConfig( //if waypoint velocity parameter is too small, the path will fail.
-        "x500.0y500.0v1100.0t90.0&x1500.0y500.0v1100.0t90.0&x2500y2500v1100t0.0&");
+        "x500.0y500.0v1100.0t90.0&x1000.0y500.0v1100.0t90.0&x2000.0y2000.0v1500.0t0.0&");
 
-    //if heading is from -M_PI to M_PI, maintain heading of zero during the motion (recommend that the heading to be maintained is the same as the heading at the start and end of the motion to prevent a sharp turn at the start/end of the motion)
-    //if heading is an out of range number, heading at any point will be the instantaneous velocity heading
-    std::vector<double> orientations = {
-        1000, 
-        1000 
-    };
+    std::vector<Point> GlobalOrientationLookupTable = { //plots u value in parameter space of spline paths (represented as x value in the table) against orientation angle (represented as y value in the table) 
+        {0, M_PI / 2},
+        {1, M_PI / 2},
+        {2, 0}};
+
+    std::vector<Point> LocalOrientationLookupTable = {};
 
     int waypointIndex = 0; //note that this is the same as u value in parameter space
     while(waypointIndex < waypoints.size() - 1) //run until all paths have been executed
     {
+        LocalOrientationLookupTable.clear();
+        LocalOrientationLookupTable = generateLocalLookupTable(waypointIndex, waypointIndex + 1, GlobalOrientationLookupTable, 15);
         StepCommandList stepCommands = GenerateHermitePath( //generate the path (in the form of a list of step commands for the robot to follow) to get from the current waypoint to the next waypoint
             waypoints[waypointIndex].position, 
             waypoints[waypointIndex + 1].position, 
             waypoints[waypointIndex].velocity, 
             waypoints[waypointIndex + 1].velocity,
             0.1, //step length of the path (length in parameter space not real space)
-            orientations[waypointIndex]); //determines if the robot will maintain a set heading or not during the path, and if so, what the heading to maintain will be
+            LocalOrientationLookupTable); //determines what orientation the robot has at any given point
 
         //execute the step command list to get from the current waypoint to the next waypoint
         for(int i = 0; i < (int)stepCommands.Steps.size(); i++){ //run until the path is fully executed
