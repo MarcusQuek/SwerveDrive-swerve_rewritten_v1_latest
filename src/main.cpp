@@ -600,7 +600,7 @@ std::vector<Waypoint> ImportWaypointConfig(std::string config)
                 i++; // skip over the & character
                 //convert the velocity polar vector into a xy vector
                 double directionvalue = std::stod(direction) * TO_RADIANS;
-                directionvalue = directionvalue - (M_PI / 2);
+                directionvalue = directionvalue - (M_PI / 2); //for some reason zero degrees faces forward for the robot, so this makes zero degrees face to the right like the rest of the spline math
                 double velocityx = std::stod(magnitude) * std::cos(directionvalue);
                 double velocityy = std::stod(magnitude) * std::sin(directionvalue);
 
@@ -643,12 +643,10 @@ double linearInterpolate(const std::vector<Point>& points, double x) { // Functi
     auto compare = [](const Point& a, const Point& b) { return a.x < b.x; };
     auto it = std::lower_bound(points.begin(), points.end(), Point{x, 0.0}, compare);
     // Handle cases where x is out of range
-    if (it == points.begin()) {
+    if (it == points.begin())
         return points.front().y; // Return the first y-value if x is too small
-    }
-    if (it == points.end()) {
+    if (it == points.end())
         return points.back().y; // Return the last y-value if x is too large
-    }
     // Find the two points for interpolation
     auto p2 = *it;
     auto p1 = *(it - 1);
@@ -657,16 +655,13 @@ double linearInterpolate(const std::vector<Point>& points, double x) { // Functi
 }
 std::vector<Point> generateLocalLookupTable(double startValue, double endValue, std::vector<Point> GlobalLookupTable, double resolution) //generates a subtable of a larger lookup table
 {
-    std::vector<Point> LocalLookupTable = {
-        {}
-    };
+    std::vector<Point> LocalLookupTable = {};
     LocalLookupTable.emplace_back(0, linearInterpolate(GlobalLookupTable, startValue)); //input the start point of the lookup table
     for(double i = 0.01; i < 0.99; i = i + (1 / resolution)) //input all the points in the middle of the lookup table
     //range of the for loop is from 0.01 < x < 0.99 so that we do not repeat the points at x = 0 and x = 1
         LocalLookupTable.emplace_back(i, linearInterpolate(GlobalLookupTable, i + startValue));
     LocalLookupTable.emplace_back(1, linearInterpolate(GlobalLookupTable, endValue)); //input the end point of the lookup table
-    for(int i = 0; i < LocalLookupTable.size(); i++)
-    {
+    for(int i = 0; i < LocalLookupTable.size(); i++){
         std::cout << "LocalLookupTable point " << i << " x value is " << LocalLookupTable[i].x << std::endl;
         std::cout << "LocalLookupTable point " << i << " y value is " << LocalLookupTable[i].y << std::endl;
     }
@@ -817,9 +812,8 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
     double CurrentRobotOrientation = LocalOrientationLookupTable[0].y;
 
     for (double t = StepLength; t < 1.0; t += StepLength) { //StepLength is a value to be tuned. Smaller steps produce a more accurate motion but PWM the motors more aggressively, slowing the motion down.
-        //apply C(t) equation to get CurrentRobotPosition
         std::cout << "..........................................START NEW ITERATION................................................................" << std::endl;
-
+        std::cout << "t value is " << t << std::endl;
         std::cout << "prevsteppositionx" << CurrentRobotPosition.x << std::endl;
         std::cout << "prevsteppositiony" << CurrentRobotPosition.y << std::endl;
         std::cout << "prevsteporientation" << CurrentRobotOrientation << std::endl;
@@ -903,10 +897,10 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
 
         vector3D prevRobotPosition = CurrentRobotPosition;
 
-        //find new robot position
+        //apply C(t) equation to get new robot position
         CurrentRobotPosition = vector3D(
-            ct[0].x * std::pow(t, 3) + ct[1].x * std::pow(t, 2) + ct[2].x * t + ct[3].x, //x polynomial of the parametric equation C(t)
-            ct[0].y * std::pow(t, 3) + ct[1].y * std::pow(t, 2) + ct[2].y * t + ct[3].y //y polynomial of the parametric equation C(t)
+            (ct[0].x * std::pow(t, 3)) + (ct[1].x * std::pow(t, 2)) + (ct[2].x * t) + ct[3].x, //x polynomial of the parametric equation C(t)
+            (ct[0].y * std::pow(t, 3)) + (ct[1].y * std::pow(t, 2)) + (ct[2].y * t) + ct[3].y //y polynomial of the parametric equation C(t)
         );
         std::cout << "newsteppositionx" << CurrentRobotPosition.x << std::endl;
         std::cout << "newsteppositiony" << CurrentRobotPosition.y << std::endl;
@@ -926,13 +920,15 @@ void move_auton(){ //execute full auton path
     std::vector<Point> GlobalOrientationLookupTable = { //plots u value in parameter space of spline paths (represented as x value in the table) against orientation angle (represented as y value in the table) 
         {0, M_PI / 2},
         {1, M_PI / 2},
-        {2, M_PI / 4}};
+        {2, M_PI / 4}
+        };
 
     std::vector<Point> LocalOrientationLookupTable = {};
 
     int waypointIndex = 0; //note that this is the same as u value in parameter space
     while(waypointIndex < waypoints.size() - 1) //run until all paths have been executed
     {
+        std::cout << "................................................START NEW PATH....................................................." << std::endl;
         LocalOrientationLookupTable.clear();
         LocalOrientationLookupTable = generateLocalLookupTable(waypointIndex, waypointIndex + 1, GlobalOrientationLookupTable, 15);
         StepCommandList stepCommands = GenerateHermitePath( //generate the path (in the form of a list of step commands for the robot to follow) to get from the current waypoint to the next waypoint
