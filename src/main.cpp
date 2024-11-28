@@ -558,7 +558,6 @@ struct Waypoint{ //stores a waypoint of the auton path
     Waypoint(vector3D position, vector3D velocity)
         : position(position), velocity(velocity) {}
 };
-
 std::vector<Waypoint> ImportWaypointConfig(std::string config)
 {
     std::vector<Waypoint> waypoints;
@@ -600,7 +599,10 @@ std::vector<Waypoint> ImportWaypointConfig(std::string config)
                 i++; // skip over the & character
                 //convert the velocity polar vector into a xy vector
                 double directionvalue = std::stod(direction) * TO_RADIANS;
-                directionvalue = directionvalue - (M_PI / 2); //for some reason zero degrees faces forward for the robot, so this makes zero degrees face to the right like the rest of the spline math
+
+                directionvalue -= M_PI;
+                if(directionvalue <= -M_PI)
+                    directionvalue += 2 * M_PI;
                 double velocityx = std::stod(magnitude) * std::cos(directionvalue);
                 double velocityy = std::stod(magnitude) * std::sin(directionvalue);
 
@@ -801,13 +803,6 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
     std::cout << "cdx" << StepCL.cdx << std::endl;
     std::cout << "cdy" << StepCL.cdy << std::endl;    
 
-    vector3D ct[4] = { //this array of vector3D represents the coefficients of the parametric polynomial function C(t) which defines the curve of the path
-        vector3D(StepCL.cax, StepCL.cay),
-        vector3D(StepCL.cbx, StepCL.cby),
-        vector3D(StepCL.ccx, StepCL.ccy),
-        vector3D(StepCL.cdx, StepCL.cdy)
-    };
-
     vector3D CurrentRobotPosition = pStart; //current robot position is simply the position of the robot at the start of the motion
     double CurrentRobotOrientation = LocalOrientationLookupTable[0].y;
 
@@ -899,8 +894,8 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
 
         //apply C(t) equation to get new robot position
         CurrentRobotPosition = vector3D(
-            (ct[0].x * std::pow(t, 3)) + (ct[1].x * std::pow(t, 2)) + (ct[2].x * t) + ct[3].x, //x polynomial of the parametric equation C(t)
-            (ct[0].y * std::pow(t, 3)) + (ct[1].y * std::pow(t, 2)) + (ct[2].y * t) + ct[3].y //y polynomial of the parametric equation C(t)
+            (StepCL.cax * std::pow(t, 3)) + (StepCL.cbx * std::pow(t, 2)) + (StepCL.ccx * t) + StepCL.cdx, //x polynomial of the parametric equation C(t)
+            (StepCL.cay * std::pow(t, 3)) + (StepCL.cby * std::pow(t, 2)) + (StepCL.ccy * t) + StepCL.cdy //y polynomial of the parametric equation C(t)
         );
         std::cout << "newsteppositionx" << CurrentRobotPosition.x << std::endl;
         std::cout << "newsteppositiony" << CurrentRobotPosition.y << std::endl;
@@ -912,16 +907,17 @@ StepCommandList GenerateHermitePath(vector3D pStart, vector3D pEnd, vector3D vSt
     return StepCL;
 }
 
-void move_auton(){ //execute full auton path
+//note that the xy coordinates are world coordinates, not from the perspective of the robot
+//positive x is angle=0, positive y is angle=90, negative x is angle=180, negative y is angle=-90
+//angle in the spline math ranges from M_PI to -M_PI
+void move_hermite_while_maintaining_orientation(std::string config, double orientationToMaintain, double StepLength){ //execute hermite path while maintaining the current orientation of the robot
     //convert the config string into a big list of waypoints
-    std::vector<Waypoint> waypoints = ImportWaypointConfig( //if waypoint velocity parameter is too small, the path will fail.
-        "x500.0y500.0v1100.0t90.0&x1000.0y500.0v1100.0t90.0&x2000.0y2500.0v1400.0t45.0&");
+    std::vector<Waypoint> waypoints = ImportWaypointConfig(config); //if waypoint velocity parameter is too small, the path will fail.
 
-    std::vector<Point> GlobalOrientationLookupTable = { //plots u value in parameter space of spline paths (represented as x value in the table) against orientation angle (represented as y value in the table) 
-        {0, M_PI / 2},
-        {1, M_PI / 2},
-        {2, M_PI / 4}
-        };
+    std::vector<Point> GlobalOrientationLookupTable = {}; //plots u value in parameter space of spline paths (represented as x value in the table) against orientation angle (represented as y value in the table) 
+
+    for(double i = 0; i < waypoints.size(); i++) //input all the points in the lookup table
+        GlobalOrientationLookupTable.emplace_back(i, orientationToMaintain);
 
     std::vector<Point> LocalOrientationLookupTable = {};
 
@@ -936,7 +932,7 @@ void move_auton(){ //execute full auton path
             waypoints[waypointIndex + 1].position, 
             waypoints[waypointIndex].velocity, 
             waypoints[waypointIndex + 1].velocity,
-            0.1, //step length of the path (length in parameter space not real space)
+            StepLength, //step length of the path (length in parameter space not real space)
             LocalOrientationLookupTable); //determines what orientation the robot has at any given point
 
         //execute the step command list to get from the current waypoint to the next waypoint
@@ -957,6 +953,13 @@ void move_auton(){ //execute full auton path
 
         pros::delay(5);
     }
+}
+
+void move_auton()
+{
+    pivotWheels(0, 0, 0.1); //point both wheels forwards
+    rotateWheels(1000, 1000, 10); //move forward 1000mm
+    move_hermite_while_maintaining_orientation("x0.0y0.0v1000.0t90.0&x0.0y2000.0v1000.0t90.0", M_PI / 2, 0.1);
 }
 
 void autonomous(){
